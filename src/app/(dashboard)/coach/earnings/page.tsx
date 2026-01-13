@@ -1,4 +1,4 @@
-import { getCurrentDbUser } from "@/lib/auth";
+import { getCurrentDbUser, getClerkUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getCoachEarnings } from "@/actions/coach-earnings.actions";
 import {
@@ -7,7 +7,8 @@ import {
   TransactionList,
   ExportButton,
 } from "@/components/features/coach-earnings";
-import { Wallet } from "lucide-react";
+import { Wallet, Loader2 } from "lucide-react";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -16,16 +17,35 @@ export const metadata: Metadata = {
 };
 
 export default async function CoachEarningsPage() {
+  const clerkUserId = await getClerkUserId();
+
+  if (!clerkUserId) {
+    redirect("/sign-in");
+  }
+
   const user = await getCurrentDbUser();
 
   if (!user) {
-    redirect("/sign-in");
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Chargement de votre profil...</p>
+      </div>
+    );
   }
 
   const result = await getCoachEarnings();
 
   if (result.error || !result.data) {
-    redirect("/user");
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <p className="text-lg font-medium">Accès non autorisé</p>
+        <p className="text-muted-foreground">{result.error}</p>
+        <Link href="/user" className="text-primary underline">
+          Retour
+        </Link>
+      </div>
+    );
   }
 
   const { thisMonth, pending, monthlyHistory, recentTransactions } = result.data;
