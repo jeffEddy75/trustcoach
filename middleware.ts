@@ -1,42 +1,24 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+// Routes publiques - SEULEMENT l'authentification (projet confidentiel)
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/webhooks(.*)", // Webhooks Stripe doivent rester publics
+]);
 
-  // Ignorer les routes API (elles gèrent leur propre auth)
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.next();
+export default clerkMiddleware(async (auth, request) => {
+  // Si la route n'est pas publique, protéger avec Clerk
+  if (!isPublicRoute(request)) {
+    await auth.protect();
   }
-
-  // Routes publiques - SEULEMENT l'authentification (projet confidentiel)
-  const publicPaths = ["/sign-in", "/sign-up"];
-  const isPublic = publicPaths.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
-
-  if (isPublic) {
-    return NextResponse.next();
-  }
-
-  // Vérifier le cookie de session Clerk
-  const sessionToken =
-    request.cookies.get("__session")?.value ||
-    request.cookies.get("__clerk_db_jwt")?.value;
-
-  // Si pas de session et route protégée, rediriger vers sign-in
-  if (!sessionToken) {
-    const signInUrl = new URL("/sign-in", request.url);
-    signInUrl.searchParams.set("redirect_url", pathname);
-    return NextResponse.redirect(signInUrl);
-  }
-
-  return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: [
-    // Match toutes les routes sauf les fichiers statiques
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.).*)",
+    // Skip Next.js internals and all static files
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
   ],
 };
