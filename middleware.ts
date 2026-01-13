@@ -1,35 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes publiques (accessibles sans authentification)
-const publicRoutes = [
-  "/",
-  "/coaches",
-  "/about",
-  "/sign-in",
-  "/sign-up",
-  "/login",
-  "/register",
-  "/api/webhooks",
-];
-
-// Vérifier si une route est publique
-function isPublicRoute(pathname: string): boolean {
-  return publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
-}
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Ignorer les routes API (elles gèrent leur propre auth)
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   // Routes publiques - laisser passer
-  if (isPublicRoute(pathname)) {
+  const publicPaths = ["/", "/coaches", "/about", "/sign-in", "/sign-up", "/login", "/register"];
+  const isPublic = publicPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+
+  if (isPublic) {
     return NextResponse.next();
   }
 
   // Vérifier le cookie de session Clerk
-  // Clerk stocke le token dans __session ou __clerk_db_jwt
   const sessionToken =
     request.cookies.get("__session")?.value ||
     request.cookies.get("__clerk_db_jwt")?.value;
@@ -41,15 +31,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Utilisateur connecté - laisser passer
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    // Exclure les fichiers statiques et Next.js internals
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Inclure les API routes
-    "/(api|trpc)(.*)",
+    // Match toutes les routes sauf les fichiers statiques
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.).*)",
   ],
 };
