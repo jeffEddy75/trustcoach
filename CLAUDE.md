@@ -27,7 +27,7 @@ UI              : Tailwind CSS + shadcn/ui
 State           : Zustand (global) + TanStack Query (server cache)
 Validation      : Zod
 Mobile          : Capacitor
-IA              : Claude API (résumés) + Whisper (transcription)
+IA              : Gemini API (résumés) + Whisper (transcription)
 Paiement        : Stripe
 ```
 
@@ -95,6 +95,40 @@ if (Capacitor.isNativePlatform()) {
 
 Une tâche = 1 feature complète et testable :
 Table Prisma + Server Action + UI + Validation + États (loading/error/empty/success)
+```
+
+### Règle 6 : NEXT.JS SERVER/CLIENT COMPONENTS
+```
+❌ INTERDIT : Passer des composants React (icônes Lucide, etc.) de Server à Client Components
+✅ OBLIGATOIRE : Utiliser "use client" sur les layouts/pages qui passent des composants aux enfants
+
+Erreur typique : "Only plain objects can be passed to Client Components"
+Solutions :
+1. Ajouter "use client" au parent (layout.tsx)
+2. Ou passer des strings/identifiants au lieu de composants React
+3. Ou ne pas passer d'icônes aux composants partagés depuis Server Components
+```
+
+### Règle 7 : INPUTS DANS LES COMPOSANTS
+```
+❌ INTERDIT : Définir des composants avec inputs à l'intérieur d'autres composants (perte de focus)
+✅ OBLIGATOIRE : Les inputs doivent être dans le JSX principal ou dans des composants séparés mémoïsés
+
+Erreur typique : L'utilisateur doit recliquer sur l'input après chaque lettre
+Cause : const MySubComponent = () => <Input ... /> défini dans le render
+Solution : Mettre le JSX directement dans le return ou extraire dans un fichier séparé
+```
+
+### Règle 8 : RECHERCHE SUR TABLEAUX PRISMA
+```
+❌ INTERDIT : Utiliser { has: searchTerm } pour recherche partielle sur tableaux
+✅ OBLIGATOIRE : Récupérer d'abord les valeurs matchées puis utiliser hasSome
+
+Prisma `has` = correspondance EXACTE, pas partielle !
+Pattern pour recherche partielle sur tableau de strings :
+1. Récupérer toutes les valeurs uniques du tableau
+2. Filtrer celles qui contiennent le terme (includes)
+3. Utiliser hasSome avec les valeurs filtrées
 ```
 
 ---
@@ -219,5 +253,5 @@ npm run type-check          # TypeScript
 
 ---
 
-*Dernière mise à jour : Janvier 2026*
-*Version : 1.0.0*
+*Dernière mise à jour : 13 Janvier 2026*
+*Version : 1.1.0*

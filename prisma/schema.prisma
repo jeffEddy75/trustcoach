@@ -1,0 +1,756 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTH & USERS (NextAuth.js compatible)
+// ============================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// USER
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  password      String?   // Hashed, null si OAuth
+  role          Role      @default(USER)
+
+  // Relations
+  accounts      Account[]
+  coach         Coach?
+  bookings      Booking[]
+  checkIns      CheckIn[]
+  consents      Consent[]
+
+  // B2B : Appartenance à une organisation
+  organizations OrganizationMember[]
+  goals         Goal[]
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+}
+
+enum Role {
+  USER      // Client qui réserve des séances
+  COACH     // Coach qui propose des séances
+  ADMIN     // Admin plateforme
+}
+
+// ============================================
+// COACH
+// ============================================
+
+model Coach {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Profil public
+  bio           String?     @db.Text
+  headline      String?     // "Coach en développement personnel"
+  specialties   String[]    // ["Gestion du stress", "Confiance en soi"]
+  languages     String[]    @default(["fr"])
+
+  // =============================================
+  // ATTRIBUTS B2B
+  // =============================================
+
+  // Méthodologies certifiées (Process Com, MBTI, etc.)
+  methodologies     String[]    // ["MBTI", "Process Com", "Ennéagramme", "360° Feedback"]
+
+  // Modes d'intervention
+  interventionModes InterventionMode[] @default([INDIVIDUAL])
+
+  // Cible client
+  targetAudience    TargetAudience[] @default([INDIVIDUAL])
+
+  // Accepte les missions entreprise
+  acceptsCorporate  Boolean     @default(false)
+
+  // Tarification
+  hourlyRate    Int?        // En centimes (ex: 8000 = 80€)
+  dailyRate     Int?        // Tarif journalier B2B (ex: 150000 = 1500€)
+  currency      String      @default("EUR")
+
+  // Médias
+  avatarUrl     String?
+  videoUrl      String?     // Vidéo de présentation
+
+  // Vérification & Badge
+  verified      Boolean     @default(false)
+  badgeLevel    BadgeLevel  @default(STANDARD)
+  verifiedAt    DateTime?
+
+  // Localisation
+  city          String?
+  country       String?     @default("FR")
+  timezone      String      @default("Europe/Paris")
+
+  // Géolocalisation (pour future carte - Phase 5)
+  latitude      Float?
+  longitude     Float?
+
+  // Modes de coaching
+  offersInPerson Boolean    @default(true)
+  offersRemote   Boolean    @default(true)
+
+  // Statistiques (dénormalisées pour performance)
+  totalSessions Int         @default(0)
+  averageRating Float?
+
+  // Relations
+  availabilities    Availability[]
+  bookings          Booking[]
+  consents          Consent[]
+  references        CoachReference[]    // Références entreprises
+  certifications    Certification[]     // Diplômes et certifications
+
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([verified])
+  @@index([specialties])
+  @@index([city])
+  @@index([acceptsCorporate])
+  @@index([methodologies])
+}
+
+// =============================================
+// ENUMS B2B
+// =============================================
+
+enum InterventionMode {
+  INDIVIDUAL      // Coaching individuel
+  TEAM            // Coaching d'équipe
+  ORGANIZATION    // Coaching d'organisation
+  GROUP           // Ateliers collectifs
+}
+
+enum TargetAudience {
+  INDIVIDUAL      // Particuliers (B2C)
+  EXECUTIVE       // Dirigeants / Cadres sup
+  MANAGER         // Managers intermédiaires
+  EMPLOYEE        // Collaborateurs
+  ENTREPRENEUR    // Entrepreneurs / Indépendants
+}
+
+// =============================================
+// RÉFÉRENCES ENTREPRISES
+// =============================================
+
+model CoachReference {
+  id            String    @id @default(cuid())
+  coachId       String
+  coach         Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  // Entreprise
+  companyName   String    // "LVMH", "BNP Paribas"
+  sector        String?   // "Luxe", "Banque"
+
+  // Mission
+  missionType   String?   // "Coaching dirigeants", "Accompagnement fusion"
+  year          Int?      // Année de la mission
+
+  // Témoignage (optionnel, avec accord)
+  testimonial   String?   @db.Text
+  contactName   String?   // "Marie D., DRH"
+  canDisplay    Boolean   @default(true) // Affichable publiquement
+
+  createdAt     DateTime  @default(now())
+
+  @@index([coachId])
+}
+
+// =============================================
+// CERTIFICATIONS
+// =============================================
+
+model Certification {
+  id              String    @id @default(cuid())
+  coachId         String
+  coach           Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  name            String    // "Certification ICF PCC"
+  issuer          String    // "International Coaching Federation"
+  year            Int?
+  expiresAt       DateTime? // Certaines certifications expirent
+
+  // Vérification
+  verified        Boolean   @default(false)
+  verifiedAt      DateTime?
+  documentUrl     String?   // URL du diplôme scanné
+
+  createdAt       DateTime  @default(now())
+
+  @@index([coachId])
+}
+
+enum BadgeLevel {
+  STANDARD  // Email vérifié
+  VERIFIED  // Diplômes vérifiés manuellement
+  PREMIUM   // Vérifié + entretien vidéo
+}
+
+// ============================================
+// AVAILABILITY (Disponibilités récurrentes)
+// ============================================
+
+model Availability {
+  id          String   @id @default(cuid())
+  coachId     String
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int      // 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi
+  startTime   String   // Format "HH:mm" (ex: "09:00")
+  endTime     String   // Format "HH:mm" (ex: "12:00")
+
+  // Optionnel : exceptions de dates
+  validFrom   DateTime?
+  validUntil  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([coachId])
+  @@index([dayOfWeek])
+}
+
+// ============================================
+// BOOKING (Réservation)
+// ============================================
+
+model Booking {
+  id            String        @id @default(cuid())
+
+  // Participants
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  coachId       String
+  coach         Coach         @relation(fields: [coachId], references: [id])
+
+  // =============================================
+  // B2B : Facturation entreprise
+  // =============================================
+  billingType   BillingType   @default(INDIVIDUAL)
+  organizationId String?      // Si payé par une entreprise
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+
+  // Planification
+  scheduledAt   DateTime      // Date et heure de début
+  duration      Int           @default(60) // En minutes
+  timezone      String        @default("Europe/Paris")
+
+  // Mode
+  mode          BookingMode   @default(REMOTE)
+  location      String?       // Adresse si présentiel
+  meetingUrl    String?       // Lien visio si remote
+
+  // Tarification
+  price         Int           // En centimes
+  currency      String        @default("EUR")
+
+  // Statut
+  status        BookingStatus @default(PENDING)
+  cancelledAt   DateTime?
+  cancelledBy   String?       // userId de celui qui annule
+  cancellationReason String?
+
+  // Stripe (paiement direct sur Booking pour simplifier)
+  stripeSessionId       String?   // Checkout session ID
+  stripePaymentIntentId String?   @unique // Payment intent ID
+  paidAt                DateTime? // Date du paiement
+  refundedAt            DateTime? // Date du remboursement
+
+  // Relations
+  payment       Payment?
+  session       Session?
+
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([coachId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([organizationId])
+  @@index([billingType])
+}
+
+// =============================================
+// TYPE DE FACTURATION
+// =============================================
+enum BillingType {
+  INDIVIDUAL    // L'utilisateur paye lui-même
+  CORPORATE     // L'entreprise paye (tiers payeur)
+}
+
+enum BookingMode {
+  REMOTE      // Visioconférence
+  IN_PERSON   // Présentiel
+}
+
+enum BookingStatus {
+  PENDING          // En attente de paiement
+  PAYMENT_FAILED   // Échec de paiement
+  CONFIRMED        // Payé, à venir
+  IN_PROGRESS      // Séance en cours
+  COMPLETED        // Séance terminée
+  CANCELLED        // Annulée
+  NO_SHOW          // Client absent
+  REFUNDED         // Remboursé intégralement
+  PARTIALLY_REFUNDED // Remboursé partiellement
+}
+
+// ============================================
+// PAYMENT (Paiement Stripe)
+// ============================================
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String        @unique
+  booking           Booking       @relation(fields: [bookingId], references: [id])
+
+  // Stripe
+  stripePaymentIntentId String?   @unique
+  stripeSessionId       String?
+
+  // Montants
+  amount            Int           // En centimes
+  platformFee       Int           // Commission plateforme
+  coachPayout       Int           // Montant reversé au coach
+  currency          String        @default("EUR")
+
+  // Statut
+  status            PaymentStatus @default(PENDING)
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  refundAmount      Int?
+
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([stripePaymentIntentId])
+}
+
+enum PaymentStatus {
+  PENDING     // En attente
+  SUCCEEDED   // Réussi
+  FAILED      // Échoué
+  REFUNDED    // Remboursé
+  PARTIAL_REFUND // Remboursement partiel
+}
+
+// ============================================
+// SESSION (Séance de coaching + Résumé IA)
+// ============================================
+
+model Session {
+  id            String        @id @default(cuid())
+  bookingId     String        @unique
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+
+  // =============================================
+  // STATUT DE TRAITEMENT
+  // Permet de suivre le pipeline audio → résumé
+  // =============================================
+  status        SessionStatus @default(IDLE)
+  statusMessage String?       // Message d'erreur si FAILED
+
+  // Audio
+  audioUrl      String?       // URL S3/Cloudinary
+  audioSize     Int?          // Taille en bytes (pour monitoring)
+  audioDuration Int?          // Durée en secondes
+  audioFormat   String?       // "webm", "mp3", "m4a"
+
+  // Transcription (Whisper)
+  transcript    String?       @db.Text
+  transcribedAt DateTime?
+
+  // Résumé IA (Claude)
+  // =============================================
+  // summaryRaw   = Version brute générée par l'IA
+  // summaryFinal = Version validée/éditée par le coach
+  // =============================================
+  summaryRaw    String?       @db.Text
+  summaryFinal  String?       @db.Text
+  summarizedAt  DateTime?
+
+  // Métadonnées
+  markedMoments MarkedMoment[]
+
+  // Relations
+  consents      Consent[]
+
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status])
+}
+
+// =============================================
+// SESSION STATUS
+// Pipeline complet de traitement
+// =============================================
+enum SessionStatus {
+  IDLE          // Pas encore d'enregistrement
+  RECORDING     // Enregistrement en cours
+  UPLOADING     // Upload vers le cloud
+  UPLOAD_FAILED // Échec upload (retry possible)
+  TRANSCRIBING  // Transcription Whisper en cours
+  TRANSCRIBE_FAILED // Échec transcription
+  SUMMARIZING   // Génération résumé Claude en cours
+  SUMMARIZE_FAILED // Échec résumé
+  COMPLETED     // Tout est terminé
+  FAILED        // Échec global
+}
+
+// ============================================
+// MARKED MOMENT (Moments marqués pendant séance)
+// ============================================
+
+model MarkedMoment {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  timestamp   Int      // Secondes depuis le début de l'enregistrement
+  type        MomentType @default(IMPORTANT)
+  note        String?  // Note optionnelle ajoutée par l'utilisateur
+
+  // Extrait du transcript (rempli après transcription)
+  excerpt     String?  @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+enum MomentType {
+  IMPORTANT   // Moment important générique
+  INSIGHT     // Déclic / prise de conscience
+  ACTION      // Action à retenir
+  QUOTE       // Citation inspirante
+}
+
+// ============================================
+// CONSENT (RGPD - Consentements)
+// ============================================
+
+model Consent {
+  id          String      @id @default(cuid())
+  sessionId   String
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  coachId     String
+  coach       Coach       @relation(fields: [coachId], references: [id])
+
+  type        ConsentType
+  accepted    Boolean     @default(true)
+
+  // RGPD : horodatage précis
+  acceptedAt  DateTime    @default(now())
+  ipAddress   String?     // Pour traçabilité légale
+  userAgent   String?     // Device info
+
+  // Révocation
+  revokedAt   DateTime?
+
+  @@unique([sessionId, userId, type])
+  @@index([sessionId])
+  @@index([userId])
+}
+
+enum ConsentType {
+  AUDIO_RECORDING   // Accepte l'enregistrement audio
+  DATA_PROCESSING   // Accepte le traitement par IA
+  SUMMARY_SHARING   // Accepte le partage du résumé avec le coach
+  DATA_RETENTION    // Accepte la conservation des données
+}
+
+// ============================================
+// CHECK-IN (Suivi quotidien - Phase 5)
+// ============================================
+
+model CheckIn {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  date        DateTime  @default(now()) @db.Date
+  mood        Int       // 1-5 (😔 à 🔥)
+  note        String?   @db.Text
+
+  // Actions complétées ce jour
+  actionsCompleted String[] // IDs des actions cochées
+
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+// ============================================
+// B2B : ORGANISATION / ENTREPRISE
+// ============================================
+
+model Organization {
+  id            String    @id @default(cuid())
+
+  // Informations légales
+  name          String    // "Société Générale"
+  legalName     String?   // "Société Générale SA"
+  siret         String?   @unique
+  vatNumber     String?   // TVA intracommunautaire
+
+  // Adresse de facturation
+  billingAddress  String?
+  billingCity     String?
+  billingPostcode String?
+  billingCountry  String?   @default("FR")
+
+  // Contact principal
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+
+  // Paramètres
+  maxUsersAllowed Int?      // Nombre max de coachés
+  budgetAllocated Int?      // Budget annuel en centimes
+  budgetUsed      Int       @default(0)
+
+  // Relations
+  members       OrganizationMember[]
+  bookings      Booking[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([name])
+}
+
+// Lien User <-> Organisation (un user peut appartenir à une orga)
+model OrganizationMember {
+  id              String    @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+
+  role            OrgMemberRole @default(EMPLOYEE)
+
+  // Limites individuelles
+  sessionsAllowed Int?      // Nombre de séances autorisées
+  sessionsUsed    Int       @default(0)
+
+  joinedAt        DateTime  @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum OrgMemberRole {
+  ADMIN       // RH / Administrateur du compte entreprise
+  MANAGER     // Peut voir les stats de son équipe
+  EMPLOYEE    // Coaché simple
+}
+
+// ============================================
+// OBJECTIFS & KPIs
+// Permet de mesurer l'évolution concrète du coaché
+// ============================================
+
+model Goal {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+
+  // Optionnel : lié à une mission entreprise
+  organizationId String?
+
+  // Contenu
+  title         String    // "Améliorer ma prise de parole en public"
+  description   String?   @db.Text
+  category      GoalCategory @default(PERSONAL)
+
+  // Mesure
+  targetValue   Float?    // Valeur cible (ex: 8/10)
+  currentValue  Float?    // Valeur actuelle
+  unit          String?   // "score /10", "%", "occurrences/semaine"
+
+  // Dates
+  startDate     DateTime  @default(now())
+  targetDate    DateTime?
+  completedAt   DateTime?
+
+  // Statut
+  status        GoalStatus @default(IN_PROGRESS)
+
+  // Historique des mesures
+  measurements  GoalMeasurement[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum GoalCategory {
+  PERSONAL      // Objectif personnel (B2C)
+  PROFESSIONAL  // Objectif pro (B2B)
+  ORGANIZATIONAL // Objectif défini par l'entreprise
+}
+
+enum GoalStatus {
+  DRAFT         // Brouillon
+  IN_PROGRESS   // En cours
+  COMPLETED     // Atteint
+  ABANDONED     // Abandonné
+}
+
+// Historique des mesures d'un objectif
+model GoalMeasurement {
+  id          String    @id @default(cuid())
+  goalId      String
+  goal        Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  value       Float     // Valeur mesurée
+  note        String?   // Commentaire
+  measuredAt  DateTime  @default(now())
+
+  // Lié à une séance ?
+  sessionId   String?
+
+  @@index([goalId])
+}
+
+// ============================================
+// DOCUMENTS DE TRAVAIL COACH
+// Tests de personnalité, évaluations 360°, etc.
+// ============================================
+
+model CoachDocument {
+  id            String    @id @default(cuid())
+
+  // Propriétaire
+  coachId       String?   // Si uploadé par le coach
+  userId        String?   // Si uploadé par le coaché
+  sessionId     String?   // Si lié à une séance spécifique
+
+  // Fichier
+  name          String    // "Test MBTI - Jean Dupont"
+  type          DocumentType
+  fileUrl       String
+  fileSize      Int       // En bytes
+  mimeType      String    // "application/pdf"
+
+  // Analyse IA (optionnel)
+  aiSummary     String?   @db.Text // Résumé généré par l'IA
+  aiAnalyzedAt  DateTime?
+
+  // Partage
+  sharedWithCoach Boolean @default(false)
+  sharedWithUser  Boolean @default(false)
+
+  // Confidentialité
+  isConfidential Boolean  @default(true)
+  expiresAt      DateTime? // Auto-suppression après X jours
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([coachId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+enum DocumentType {
+  PERSONALITY_TEST  // MBTI, Process Com, etc.
+  EVALUATION_360    // Feedback 360°
+  PERFORMANCE_REVIEW // Entretien annuel
+  CUSTOM            // Autre document
+  SESSION_NOTES     // Notes de séance (manuscrites)
+}
+
+// ============================================
+// OFFLINE QUEUE (File d'attente hors-ligne)
+// Tracker les uploads en attente côté serveur
+// ============================================
+
+model OfflineUpload {
+  id            String            @id @default(cuid())
+  sessionId     String
+
+  // Tracking
+  status        OfflineUploadStatus @default(PENDING)
+  retryCount    Int               @default(0)
+  lastRetryAt   DateTime?
+  errorMessage  String?
+
+  // Métadonnées de l'upload
+  fileSize      Int               // Taille attendue
+  checksum      String?           // Pour vérifier l'intégrité
+
+  createdAt     DateTime          @default(now())
+  completedAt   DateTime?
+
+  @@index([status])
+  @@index([sessionId])
+}
+
+enum OfflineUploadStatus {
+  PENDING       // En attente de connexion
+  UPLOADING     // Upload en cours
+  COMPLETED     // Upload réussi
+  FAILED        // Échec définitif (après X retries)
+}
