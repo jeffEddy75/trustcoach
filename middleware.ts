@@ -9,8 +9,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Routes publiques - laisser passer
-  const publicPaths = ["/", "/coaches", "/about", "/sign-in", "/sign-up", "/login", "/register"];
+  // Routes publiques - SEULEMENT l'authentification (projet confidentiel)
+  const publicPaths = ["/sign-in", "/sign-up"];
   const isPublic = publicPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
