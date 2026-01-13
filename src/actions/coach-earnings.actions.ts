@@ -18,6 +18,8 @@ export interface Transaction {
   sessionNumber: number;
   amount: number;
   status: "COMPLETED" | "CONFIRMED" | "CANCELLED" | "REFUNDED";
+  hasInvoice: boolean;
+  invoiceStatus: "DRAFT" | "ISSUED" | "SENT" | null;
 }
 
 interface EarningsData {
@@ -138,6 +140,12 @@ export async function getCoachEarnings(): Promise<ActionResult<EarningsData>> {
             email: true,
           },
         },
+        invoice: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
       },
       orderBy: { scheduledAt: "desc" },
       take: 10,
@@ -163,6 +171,8 @@ export async function getCoachEarnings(): Promise<ActionResult<EarningsData>> {
           sessionNumber: sessionNumber || 1,
           amount: booking.price,
           status: booking.status as Transaction["status"],
+          hasInvoice: !!booking.invoice,
+          invoiceStatus: booking.invoice?.status ?? null,
         };
       })
     );

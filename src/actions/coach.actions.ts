@@ -73,6 +73,11 @@ export async function updateCoachProfileAction(
         timezone: validated.timezone,
         offersInPerson: validated.offersInPerson,
         offersRemote: validated.offersRemote,
+        // Informations légales (pour facturation)
+        legalName: validated.legalName,
+        siret: validated.siret || null,
+        businessAddress: validated.businessAddress,
+        vatExempt: validated.vatExempt,
       },
     });
 

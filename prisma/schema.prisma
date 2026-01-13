@@ -62,6 +62,7 @@ model User {
   checkIns      CheckIn[]
   consents      Consent[]
   conversations Conversation[]      // Messagerie
+  invoices      Invoice[]           // Factures reçues
 
   // B2B : Appartenance à une organisation
   organizations OrganizationMember[]
@@ -143,6 +144,14 @@ model Coach {
   totalSessions Int         @default(0)
   averageRating Float?
 
+  // =============================================
+  // INFOS LÉGALES POUR FACTURATION
+  // =============================================
+  legalName       String?       // "Jean Dupont EI" ou "Jean Dupont Entrepreneur Individuel"
+  siret           String?       // 14 chiffres
+  businessAddress String?       // Adresse professionnelle
+  vatExempt       Boolean       @default(true)  // Franchise de TVA (micro-entreprise)
+
   // Relations
   availabilities    Availability[]
   bookings          Booking[]
@@ -150,6 +159,7 @@ model Coach {
   references        CoachReference[]    // Références entreprises
   certifications    Certification[]     // Diplômes et certifications
   conversations     Conversation[]      // Messagerie
+  invoices          Invoice[]           // Factures générées
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -311,6 +321,7 @@ model Booking {
   // Relations
   payment       Payment?
   session       Session?
+  invoice       Invoice?      // Facture générée pour cette séance
 
   // Timestamps
   createdAt     DateTime      @default(now())
@@ -824,4 +835,61 @@ model ChatMessage {
 enum SenderRole {
   USER
   COACH
+}
+
+// ============================================
+// INVOICE (Facturation à la demande)
+// ============================================
+
+model Invoice {
+  id              String        @id @default(cuid())
+
+  // Liens
+  bookingId       String?       @unique
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+  coachId         String
+  coach           Coach         @relation(fields: [coachId], references: [id])
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+
+  // Numérotation séquentielle
+  number          String        @unique  // FAC-2026-01-0001
+  issueDate       DateTime      @default(now())
+
+  // === SNAPSHOTS LÉGAUX (figés à la création) ===
+  coachLegalName  String        // "Jean Dupont EI" ou "Jean Dupont Entrepreneur Individuel"
+  coachSiret      String        // 14 chiffres
+  coachAddress    String
+  coachVatMention String        @default("TVA non applicable, art. 293 B du CGI")
+
+  clientName      String
+  clientEmail     String
+  clientAddress   String?
+  clientSiret     String?       // Requis si OPCO/B2B
+  clientCompany   String?
+
+  // === CONTENU ===
+  description     String        @default("Séance de coaching")
+  quantity        Int           @default(1)
+  unitPriceHT     Int           // En centimes
+  amountHT        Int           // En centimes
+  amountTTC       Int           // En centimes (= amountHT si franchise TVA)
+
+  // === STATUT ===
+  status          InvoiceStatus @default(DRAFT)
+  sentAt          DateTime?
+  pdfUrl          String?       // URL du PDF stocké
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([coachId])
+  @@index([userId])
+  @@index([number])
+}
+
+enum InvoiceStatus {
+  DRAFT     // Brouillon
+  ISSUED    // Émise (numéro attribué, immutable)
+  SENT      // Envoyée au client
 }

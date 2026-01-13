@@ -269,9 +269,9 @@ src/components/features/coach-clients/
 
 ---
 
-## VUE 3 : Ledger Financier Simple (30min)
+## VUE 3 : Ledger Financier + Factures (1h)
 
-> *"Combien j'ai gagné ce mois ?"*
+> *"Combien j'ai gagné ce mois ? Et mes factures ?"*
 
 ### Route
 `/dashboard/coach/earnings` (ou section dans le dashboard principal)
@@ -299,14 +299,29 @@ src/components/features/coach-clients/
 │  📋 Dernières transactions                                  │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ 12 jan  Marie Dupont      Séance #4       80 €  ✅  │   │
+│  │         [Générer facture]                           │   │
 │  │ 10 jan  Jean Martin       Séance #2      120 €  ✅  │   │
+│  │         [Facture envoyée ✓]                         │   │
 │  │ 15 jan  Sophie Durand     Séance #1       80 €  ⏳  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  [Exporter CSV]                                             │
+│  [Exporter CSV]  [Voir toutes les factures]                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Bouton "Générer facture" sur chaque transaction
+
+Quand le coach clique :
+1. Modal s'ouvre avec les infos pré-remplies
+2. Coach peut modifier le libellé si besoin
+3. Prévisualise le PDF
+4. Génère → Statut passe à "Facture prête"
+5. Peut envoyer au client par email
+
+### Lien vers la liste des factures
+
+`/dashboard/coach/invoices` → Vue dédiée pour gérer toutes les factures
 
 ### Statuts des paiements
 
@@ -315,6 +330,15 @@ src/components/features/coach-clients/
 | ✅ | COMPLETED | Séance terminée, paiement reçu |
 | ⏳ | PENDING | Séance à venir, paiement en attente |
 | ❌ | REFUNDED | Annulé et remboursé |
+
+### Statuts des factures
+
+| Icône | Statut | Description |
+|-------|--------|-------------|
+| — | Pas de facture | Bouton "Générer facture" visible |
+| 📝 | DRAFT | Brouillon, pas encore émise |
+| 📤 | ISSUED | Émise, prête à envoyer |
+| ✅ | SENT | Envoyée au client |
 
 ### Données à récupérer
 
@@ -491,12 +515,14 @@ src/
 - [ ] Bouton "Voir fiche" (nice to have)
 - [ ] Bouton "Envoyer message" (si messagerie dispo)
 
-### Vue 3 : Ledger
+### Vue 3 : Ledger + Factures
 - [ ] Route `/dashboard/coach/earnings` créée
 - [ ] Server Action `getCoachEarnings` fonctionne
 - [ ] 3 cards : Ce mois / En attente / Total
 - [ ] Historique 6 mois en barres
 - [ ] Liste des dernières transactions
+- [ ] Bouton "Générer facture" par transaction
+- [ ] Lien vers `/dashboard/coach/invoices`
 - [ ] Export CSV (nice to have)
 
 ---

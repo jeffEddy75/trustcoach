@@ -816,18 +816,92 @@ Géocodage des adresses via API Mapbox ou OpenCage au moment de la création du 
 
 ---
 
-#### Task 7.6 : Facturation Automatique (2h)
-**Objectif** : Génération de factures PDF
+#### Task 7.6 : Facturation à la Demande (3h) — validé Gemini
+**Objectif** : Le coach génère des factures pour que ses clients se fassent rembourser
+
+> **Contexte** : La facture n'est PAS liée au paiement Stripe. 
+> Les clients réclament des factures pour se faire rembourser par leur employeur, mutuelle, ou OPCO.
+
+**Cas d'usage** :
+| Payeur initial | Rembourseur | Document |
+|----------------|-------------|----------|
+| CB perso | Employeur | Facture avec SIRET coach |
+| CB perso | Mutuelle | Facture / Note d'honoraires |
+| CB perso | OPCO | Facture + convention formation |
+| Entreprise | — | Facture B2B classique |
+
+**Vue Liste Factures** (`/dashboard/coach/invoices`) :
+```
+┌───────────────────────────────────────────────────────────┐
+│  📄 Mes factures                    [+ Créer une facture] │
+├───────────────────────────────────────────────────────────┤
+│  Filtrer : [Tous ▼] [Ce mois ▼]                          │
+│                                                           │
+│  FAC-2026-01-003  Marie Dupont     80 €    ✅ Envoyée     │
+│  12 jan 2026      [Voir PDF]  [Renvoyer]                 │
+│                                                           │
+│  FAC-2026-01-002  Jean Martin     120 €    📝 Brouillon   │
+│  10 jan 2026      [Voir PDF]  [Finaliser]  [Supprimer]   │
+│                                                           │
+│  FAC-2026-01-001  Sophie Durand    80 €    📤 Émise       │
+│  8 jan 2026       [Voir PDF]  [Envoyer au client]        │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Flow de création** :
+1. Coach clique "Créer une facture"
+2. Sélectionne le client (liste des coachés)
+3. Sélectionne la/les séance(s) à facturer
+4. Personnalise le libellé si besoin
+5. Prévisualise → Sauvegarde en brouillon ou Finalise
+6. Envoie au client (email avec PDF)
+
+**Mentions légales obligatoires (France)** :
+```
+┌─────────────────────────────────────────────────────────┐
+│                      FACTURE                            │
+│                   FAC-2026-01-003                       │
+├─────────────────────────────────────────────────────────┤
+│ ÉMETTEUR                    │ CLIENT                   │
+│ Jean Dupont EI              │ Marie Martin             │
+│ SIRET : 123 456 789 00012   │ marie@email.com          │
+│ 12 rue Example              │                          │
+│ 75001 Paris                 │ (SIRET si B2B/OPCO)      │
+├─────────────────────────────────────────────────────────┤
+│ Date : 12/01/2026                                       │
+├─────────────────────────────────────────────────────────┤
+│ Désignation              │ Qté │ Prix U. │ Total       │
+│ Séance de coaching       │  1  │  80,00€ │  80,00€     │
+├─────────────────────────────────────────────────────────┤
+│                                   Total HT :   80,00€  │
+│         TVA non applicable, art. 293 B du CGI          │
+│                                   Total TTC :  80,00€  │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Prérequis coach** :
+- [ ] SIRET renseigné dans son profil
+- [ ] Nom légal (avec mention "EI" si applicable)
+- [ ] Adresse professionnelle
 
 **Critères d'acceptation** :
-- [ ] Facture générée automatiquement après paiement Stripe
-- [ ] Numérotation conforme (YYYY-MM-XXX)
-- [ ] Infos coach (SIRET si dispo, adresse)
-- [ ] Infos client
-- [ ] PDF téléchargeable
-- [ ] Historique des factures
+- [ ] Modèle `Invoice` avec snapshots légaux
+- [ ] Numérotation séquentielle `FAC-YYYY-MM-XXXX`
+- [ ] Génération PDF conforme
+- [ ] Liste des factures avec statuts (DRAFT, ISSUED, SENT)
+- [ ] Bouton "Créer une facture" → flow de création
+- [ ] Sélection client + séance(s)
+- [ ] Libellé personnalisable (défaut : "Séance de coaching")
+- [ ] Prévisualisation avant envoi
+- [ ] Bouton "Envoyer au client" → email avec PDF
+- [ ] Historique des envois (sentAt)
+- [ ] Coach sans SIRET → alerte "Complétez votre profil"
 
-**Note Gemini** : Utiliser les données Stripe, pas recréer un module compta.
+**Ce qu'on ne fait PAS** :
+- ❌ Modification après émission (immutable)
+- ❌ Gestion TVA complexe (franchise par défaut)
+- ❌ Avoirs / notes de crédit (V2)
+- ❌ Relances automatiques
 
 ---
 

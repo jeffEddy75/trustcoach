@@ -13,7 +13,8 @@
 └─────────────┘     └─────────────┘     └─────────────┘
        │                   │                   
        │                   ├──▶ CoachReference (B2B)
-       │                   └──▶ Certification
+       │                   ├──▶ Certification
+       │                   └──▶ Invoice (Facturation)
        │
        ├──▶ OrganizationMember ──▶ Organization (B2B)
        │
@@ -24,7 +25,7 @@
 │   Booking   │────▶│   Session   │────▶│   Consent   │
 └─────────────┘     └─────────────┘     └─────────────┘
        │                   │
-       │                   ├──▶ MarkedMoment
+       ├──▶ Invoice        ├──▶ MarkedMoment
        │                   └──▶ CoachDocument
        ▼                   
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -36,6 +37,7 @@
 - **Modèles B2C** : User, Coach, Booking, Session, Payment
 - **Modèles B2B** : Organization, OrganizationMember, CoachReference, Goal, CoachDocument
 - **Messagerie** : Conversation, ChatMessage
+- **Facturation** : Invoice (génération à la demande)
 
 ---
 
@@ -111,6 +113,9 @@ model User {
   
   // Messagerie
   conversations Conversation[]
+  
+  // Factures reçues
+  invoices      Invoice[]
   
   // Timestamps
   createdAt     DateTime  @default(now())
@@ -194,6 +199,7 @@ model Coach {
   references        CoachReference[]    // Références entreprises
   certifications    Certification[]     // Diplômes et certifications
   conversations     Conversation[]      // Messagerie
+  invoices          Invoice[]           // Factures émises
   
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -349,6 +355,7 @@ model Booking {
   // Relations
   payment       Payment?
   session       Session?
+  invoice       Invoice?      // Facture générée à la demande
   
   // Timestamps
   createdAt     DateTime      @default(now())
@@ -617,6 +624,72 @@ model ChatMessage {
 enum SenderType {
   USER
   COACH
+}
+
+// ============================================
+// FACTURATION (Phase 7 - validé Gemini)
+// ============================================
+
+model Invoice {
+  id              String        @id @default(cuid())
+  
+  // Lien avec la séance (optionnel car peut regrouper plusieurs séances)
+  bookingId       String?       @unique
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+  
+  // Lien avec le coach
+  coachId         String
+  coach           Coach         @relation(fields: [coachId], references: [id])
+  
+  // Lien avec le client
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  
+  // Numérotation séquentielle (FAC-YYYY-MM-XXXX)
+  number          String        @unique
+  issueDate       DateTime      @default(now())
+  
+  // === SNAPSHOTS LÉGAUX (figés à la création) ===
+  // Obligatoire pour conformité française
+  
+  // Infos coach
+  coachLegalName  String        // "Jean Dupont EI" ou "Jean Dupont Entrepreneur Individuel"
+  coachSiret      String        // 14 chiffres
+  coachAddress    String
+  coachVatMention String        @default("TVA non applicable, art. 293 B du CGI")
+  
+  // Infos client
+  clientName      String
+  clientEmail     String
+  clientAddress   String?
+  clientSiret     String?       // Requis pour OPCO / B2B
+  clientCompany   String?       // Nom de l'entreprise si B2B
+  
+  // === CONTENU ===
+  description     String        @default("Séance de coaching")
+  quantity        Int           @default(1)
+  unitPriceHT     Int           // En centimes
+  amountHT        Int           // En centimes (quantity * unitPriceHT)
+  amountTTC       Int           // En centimes (= amountHT si franchise TVA)
+  
+  // === STATUT ===
+  status          InvoiceStatus @default(DRAFT)
+  sentAt          DateTime?     // Date d'envoi au client
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([coachId])
+  @@index([userId])
+  @@index([number])
+}
+
+enum InvoiceStatus {
+  DRAFT           // Brouillon, pas encore finalisée
+  ISSUED          // Émise, numéro attribué
+  SENT            // Envoyée au client
+  PAID            // Marquée comme payée (optionnel)
 }
 
 // ============================================
@@ -942,6 +1015,19 @@ enum OfflineUploadStatus {
 | Texte uniquement | Pas de pièces jointes en V1 |
 | Archivage manuel | Pas d'auto-archivage |
 | Scan IA pré-brief | Reporté en V2 |
+
+### Invoice (Facturation) — Décisions validées Gemini
+| Règle | Description |
+|-------|-------------|
+| Génération à la demande | Facture créée quand le client la réclame (pour remboursement) |
+| Découplée du paiement | Indépendante du reçu Stripe |
+| Numérotation séquentielle | Format `FAC-YYYY-MM-XXXX` sans trous |
+| Snapshots légaux | Infos coach/client figées à la création |
+| SIRET obligatoire | Coach doit avoir renseigné son SIRET |
+| Mention TVA | Par défaut "TVA non applicable, art. 293 B du CGI" |
+| SIRET client optionnel | Requis pour dossiers OPCO / B2B |
+| Statuts | DRAFT → ISSUED → SENT → PAID |
+| Envoi par email | Coach envoie manuellement avec PDF en PJ |
 
 ---
 

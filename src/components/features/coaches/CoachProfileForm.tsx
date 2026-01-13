@@ -20,7 +20,8 @@ import {
 import { updateCoachProfileAction } from "@/actions/coach.actions";
 import type { Coach } from "@prisma/client";
 import type { CoachProfileInput } from "@/validations/coach.schema";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X, Building2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CoachProfileFormProps {
   coach: Coach;
@@ -90,6 +91,11 @@ export function CoachProfileForm({ coach }: CoachProfileFormProps) {
     timezone: coach.timezone,
     offersInPerson: coach.offersInPerson,
     offersRemote: coach.offersRemote,
+    // Informations légales
+    legalName: coach.legalName || "",
+    siret: coach.siret || "",
+    businessAddress: coach.businessAddress || "",
+    vatExempt: coach.vatExempt ?? true,
   });
 
   // Input temporaires pour ajouter des éléments aux arrays
@@ -612,6 +618,106 @@ export function CoachProfileForm({ coach }: CoachProfileFormProps) {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Informations légales */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Informations légales (Facturation)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Ces informations sont nécessaires pour générer des factures à vos
+              clients. Elles apparaîtront sur vos factures conformément à la
+              législation française.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-2">
+            <Label htmlFor="legalName">Nom légal *</Label>
+            <Input
+              id="legalName"
+              placeholder="Jean Dupont EI"
+              value={formData.legalName || ""}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, legalName: e.target.value }))
+              }
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">
+              Doit inclure &quot;EI&quot; ou &quot;Entrepreneur Individuel&quot;
+              (obligatoire depuis mai 2022). Exemple: &quot;Jean Dupont EI&quot;
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="siret">Numéro SIRET *</Label>
+            <Input
+              id="siret"
+              placeholder="12345678901234"
+              value={formData.siret || ""}
+              onChange={(e) => {
+                // Ne garder que les chiffres
+                const value = e.target.value.replace(/\D/g, "").slice(0, 14);
+                setFormData((prev) => ({ ...prev, siret: value }));
+              }}
+              maxLength={14}
+            />
+            <p className="text-xs text-muted-foreground">
+              14 chiffres, sans espaces. Trouvez-le sur{" "}
+              <a
+                href="https://www.societe.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                societe.com
+              </a>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="businessAddress">Adresse professionnelle</Label>
+            <Textarea
+              id="businessAddress"
+              placeholder="123 rue Example, 75001 Paris"
+              value={formData.businessAddress || ""}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  businessAddress: e.target.value,
+                }))
+              }
+              rows={2}
+              maxLength={500}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Franchise de TVA</Label>
+              <p className="text-sm text-muted-foreground">
+                Je bénéficie de la franchise en base de TVA (art. 293 B du CGI)
+              </p>
+            </div>
+            <Switch
+              checked={formData.vatExempt}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, vatExempt: checked }))
+              }
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Si activé, vos factures afficheront &quot;TVA non applicable, art.
+            293 B du CGI&quot;. La plupart des auto-entrepreneurs et
+            micro-entreprises en bénéficient.
+          </p>
         </CardContent>
       </Card>
 

@@ -82,6 +82,25 @@ export const coachProfileSchema = z.object({
   // Modes de coaching
   offersInPerson: z.boolean().default(true),
   offersRemote: z.boolean().default(true),
+
+  // Informations légales (pour facturation)
+  legalName: z
+    .string()
+    .max(200, "Le nom légal ne doit pas dépasser 200 caractères")
+    .optional()
+    .nullable(),
+  siret: z
+    .string()
+    .regex(/^\d{14}$/, "Le SIRET doit contenir exactement 14 chiffres")
+    .optional()
+    .nullable()
+    .or(z.literal("")), // Permet une string vide
+  businessAddress: z
+    .string()
+    .max(500, "L'adresse ne doit pas dépasser 500 caractères")
+    .optional()
+    .nullable(),
+  vatExempt: z.boolean().default(true),
 });
 
 // Schéma pour l'upload d'avatar

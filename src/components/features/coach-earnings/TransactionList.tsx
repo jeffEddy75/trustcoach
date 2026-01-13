@@ -1,8 +1,11 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
-import { Receipt, Check, Clock, X, RotateCcw } from "lucide-react";
+import { Receipt, Check, Clock, X, RotateCcw, FileText } from "lucide-react";
 import type { Transaction } from "@/actions/coach-earnings.actions";
+import { CreateInvoiceButton } from "@/components/features/invoices";
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -34,6 +37,15 @@ const statusConfig: Record<
   },
 };
 
+const invoiceStatusConfig: Record<
+  NonNullable<Transaction["invoiceStatus"]>,
+  { label: string; icon: string }
+> = {
+  DRAFT: { label: "Brouillon", icon: "📝" },
+  ISSUED: { label: "Émise", icon: "📤" },
+  SENT: { label: "Facture envoyée", icon: "✅" },
+};
+
 export function TransactionList({ transactions }: TransactionListProps) {
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("fr-FR", {
@@ -63,7 +75,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
               return (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between py-2 border-b last:border-0"
+                  className="flex items-center justify-between py-2 border-b last:border-0 gap-2 flex-wrap"
                 >
                   <div className="flex items-center gap-3">
                     <div className="text-sm font-medium text-muted-foreground w-16">
@@ -78,7 +90,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className={`font-medium ${
                         transaction.status === "REFUNDED"
@@ -93,6 +105,21 @@ export function TransactionList({ transactions }: TransactionListProps) {
                       {status.icon}
                       <span className="ml-1">{status.label}</span>
                     </Badge>
+
+                    {/* Facture */}
+                    {transaction.status === "COMPLETED" && (
+                      <>
+                        {transaction.hasInvoice && transaction.invoiceStatus ? (
+                          <Badge variant="outline" className="gap-1">
+                            <FileText className="h-3 w-3" />
+                            {invoiceStatusConfig[transaction.invoiceStatus].icon}{" "}
+                            {invoiceStatusConfig[transaction.invoiceStatus].label}
+                          </Badge>
+                        ) : (
+                          <CreateInvoiceButton bookingId={transaction.id} />
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               );
