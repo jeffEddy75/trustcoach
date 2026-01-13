@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,9 +45,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 export default async function SessionPage({ params }: SessionPageProps) {
   const { id } = await params;
 
-  const authSession = await auth();
-  if (!authSession?.user) {
-    redirect("/login");
+  const currentUser = await getCurrentDbUser();
+  if (!currentUser) {
+    redirect("/sign-in");
   }
 
   const session = await prisma.session.findUnique({
@@ -69,8 +69,8 @@ export default async function SessionPage({ params }: SessionPageProps) {
   }
 
   // Vérifier les droits
-  const isOwner = session.booking.userId === authSession.user.id;
-  const isCoach = session.booking.coach.userId === authSession.user.id;
+  const isOwner = session.booking.userId === currentUser.id;
+  const isCoach = session.booking.coach.userId === currentUser.id;
 
   if (!isOwner && !isCoach) {
     redirect("/user/bookings");

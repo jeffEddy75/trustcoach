@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Calendar,
   FileText,
+  MessageSquare,
   User,
   Settings,
 } from "lucide-react";
@@ -14,6 +15,7 @@ const userNavItems: SidebarItem[] = [
   { href: "/user", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/user/bookings", label: "Mes réservations", icon: Calendar },
   { href: "/user/sessions", label: "Mes séances", icon: FileText },
+  { href: "/user/messages", label: "Messages", icon: MessageSquare },
   { href: "/user/profile", label: "Mon profil", icon: User },
   { href: "/user/settings", label: "Paramètres", icon: Settings },
 ];

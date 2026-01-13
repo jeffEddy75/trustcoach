@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function UserDashboardPage() {
-  const session = await auth();
+  const user = await getCurrentDbUser();
 
-  if (!session?.user) {
+  if (!user) {
     return null;
   }
 
@@ -22,14 +22,14 @@ export default async function UserDashboardPage() {
   const [upcomingBookings, completedSessions] = await Promise.all([
     prisma.booking.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: "CONFIRMED",
         scheduledAt: { gte: new Date() },
       },
     }),
     prisma.booking.count({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         status: "COMPLETED",
       },
     }),
@@ -38,7 +38,7 @@ export default async function UserDashboardPage() {
   // Prochaine séance
   const nextBooking = await prisma.booking.findFirst({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       status: "CONFIRMED",
       scheduledAt: { gte: new Date() },
     },
@@ -55,7 +55,7 @@ export default async function UserDashboardPage() {
       {/* Header */}
       <div>
         <h1 className="font-heading text-2xl font-bold">
-          Bonjour, {session.user.name?.split(" ")[0] || "vous"} !
+          Bonjour, {user.name?.split(" ")[0] || "vous"} !
         </h1>
         <p className="text-muted-foreground mt-1">
           Bienvenue dans votre espace personnel.

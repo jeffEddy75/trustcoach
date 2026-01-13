@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { UserProfileForm } from "@/components/features/user/UserProfileForm";
@@ -10,18 +10,18 @@ export const metadata: Metadata = {
 };
 
 export default async function EditUserProfilePage() {
-  const session = await auth();
+  const currentUser = await getCurrentDbUser();
 
-  if (!session?.user) {
-    redirect("/login");
+  if (!currentUser) {
+    redirect("/sign-in");
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: currentUser.id },
   });
 
   if (!user) {
-    redirect("/login");
+    redirect("/sign-in");
   }
 
   return (

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +14,16 @@ export const metadata: Metadata = {
 };
 
 export default async function UserSessionsPage() {
-  const session = await auth();
+  const user = await getCurrentDbUser();
 
-  if (!session?.user) {
+  if (!user) {
     return null;
   }
 
   const sessions = await prisma.session.findMany({
     where: {
       booking: {
-        userId: session.user.id,
+        userId: user.id,
       },
     },
     include: {

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -24,14 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function CoachProfilePage() {
-  const session = await auth();
+  const user = await getCurrentDbUser();
 
-  if (!session?.user) {
+  if (!user) {
     return null;
   }
 
   const coach = await prisma.coach.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
     include: {
       user: true,
       certifications: true,

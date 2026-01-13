@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession, createRefund } from "@/services/stripe";
 import type { ActionResult } from "@/types";
@@ -12,11 +12,7 @@ export async function createPaymentSessionAction(
   bookingId: string
 ): Promise<ActionResult<{ checkoutUrl: string }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Récupérer la réservation
     const booking = await prisma.booking.findUnique({
@@ -32,7 +28,7 @@ export async function createPaymentSessionAction(
     }
 
     // Vérifier que l'utilisateur est le propriétaire
-    if (booking.userId !== session.user.id) {
+    if (booking.userId !== user.id) {
       return { data: null, error: "Accès non autorisé" };
     }
 
@@ -94,11 +90,7 @@ export async function checkPaymentStatusAction(
   bookingId: string
 ): Promise<ActionResult<{ status: string; paidAt: Date | null }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -110,12 +102,12 @@ export async function checkPaymentStatusAction(
 
     // Vérifier les droits d'accès
     const coach = await prisma.coach.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
-    const isOwner = booking.userId === session.user.id;
+    const isOwner = booking.userId === user.id;
     const isCoach = coach?.id === booking.coachId;
-    const isAdmin = session.user.role === "ADMIN";
+    const isAdmin = user.role === "ADMIN";
 
     if (!isOwner && !isCoach && !isAdmin) {
       return { data: null, error: "Accès non autorisé" };
@@ -142,11 +134,7 @@ export async function requestRefundAction(
   reason?: string
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -158,8 +146,8 @@ export async function requestRefundAction(
     }
 
     // Seul le coach ou l'admin peut initier un remboursement
-    const isCoach = booking.coach.userId === session.user.id;
-    const isAdmin = session.user.role === "ADMIN";
+    const isCoach = booking.coach.userId === user.id;
+    const isAdmin = user.role === "ADMIN";
 
     if (!isCoach && !isAdmin) {
       return { data: null, error: "Seul le coach ou l'admin peut effectuer un remboursement" };
@@ -191,7 +179,7 @@ export async function requestRefundAction(
       },
     });
 
-    console.log(`[REFUND] Booking ${bookingId} refunded by ${session.user.id}`);
+    console.log(`[REFUND] Booking ${bookingId} refunded by ${user.id}`);
 
     return { data: { success: true }, error: null };
   } catch (error) {

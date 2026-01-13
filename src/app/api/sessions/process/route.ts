@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadAudio } from "@/services/storage";
 import { processSessionAudio } from "@/services/ai";
@@ -14,9 +14,9 @@ export const maxDuration = 300; // 5 minutes max pour le traitement
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const user = await getCurrentDbUser();
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
 
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isOwner = dbSession.booking.userId === session.user.id;
-    const isCoach = dbSession.booking.coach.userId === session.user.id;
+    const isOwner = dbSession.booking.userId === user.id;
+    const isCoach = dbSession.booking.coach.userId === user.id;
 
     if (!isOwner && !isCoach) {
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });

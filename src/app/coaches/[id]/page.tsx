@@ -14,13 +14,13 @@ import {
   Building2,
   Calendar,
   CheckCircle,
-  Clock,
   Globe,
   MapPin,
   Star,
   Users,
   Video,
 } from "lucide-react";
+import { ContactCoachButton } from "@/components/features/messaging/ContactCoachButton";
 import type { Metadata } from "next";
 
 interface CoachProfilePageProps {
@@ -168,12 +168,15 @@ export default async function CoachProfilePage({ params }: CoachProfilePageProps
                       Tarif journalier : {formatPrice(coach.dailyRate)}
                     </p>
                   )}
-                  <Button className="w-full" size="lg" asChild>
-                    <Link href={`/booking/${coach.id}`}>
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Réserver une séance
-                    </Link>
-                  </Button>
+                  <div className="space-y-3">
+                    <Button className="w-full" size="lg" asChild>
+                      <Link href={`/booking/${coach.id}`}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Réserver une séance
+                      </Link>
+                    </Button>
+                    <ContactCoachButton coachId={coach.id} className="w-full" />
+                  </div>
                 </CardContent>
               </Card>
             </div>

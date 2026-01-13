@@ -1,7 +1,7 @@
 "use server";
 
 import { compare, hash } from "bcryptjs";
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   userProfileSchema,
@@ -17,20 +17,7 @@ import type { User } from "@prisma/client";
  */
 export async function getUserProfileAction(): Promise<ActionResult<User>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-
-    if (!user) {
-      return { data: null, error: "Utilisateur non trouvé" };
-    }
-
+    const user = await requireDbUser();
     return { data: user, error: null };
   } catch (error) {
     console.error("[GET_USER_PROFILE_ERROR]", error);
@@ -45,18 +32,14 @@ export async function updateUserProfileAction(
   data: UserProfileInput
 ): Promise<ActionResult<User>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const currentUser = await requireDbUser();
 
     // Valider les données
     const validated = userProfileSchema.parse(data);
 
     // Mettre à jour le profil
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: currentUser.id },
       data: {
         name: validated.name,
       },
@@ -71,23 +54,20 @@ export async function updateUserProfileAction(
 
 /**
  * Changer le mot de passe
+ * Note: Avec Clerk, cette fonction peut être désactivée car Clerk gère les mots de passe
  */
 export async function changePasswordAction(
   data: ChangePasswordInput
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const currentUser = await requireDbUser();
 
     // Valider les données
     const validated = changePasswordSchema.parse(data);
 
     // Récupérer l'utilisateur avec son mot de passe
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: currentUser.id },
       select: { password: true },
     });
 
@@ -95,11 +75,11 @@ export async function changePasswordAction(
       return { data: null, error: "Utilisateur non trouvé" };
     }
 
-    // Si l'utilisateur n'a pas de mot de passe (OAuth), il ne peut pas changer
+    // Si l'utilisateur n'a pas de mot de passe (OAuth/Clerk), il ne peut pas changer
     if (!user.password) {
       return {
         data: null,
-        error: "Vous utilisez une connexion sociale. Le mot de passe ne peut pas être modifié.",
+        error: "Vous utilisez une connexion sociale. Le mot de passe ne peut pas être modifié ici.",
       };
     }
 
@@ -112,7 +92,7 @@ export async function changePasswordAction(
     // Hasher et mettre à jour le nouveau mot de passe
     const hashedPassword = await hash(validated.newPassword, 12);
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: currentUser.id },
       data: { password: hashedPassword },
     });
 
@@ -128,15 +108,11 @@ export async function changePasswordAction(
  */
 export async function deleteAccountAction(): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const currentUser = await requireDbUser();
 
     // Supprimer l'utilisateur (cascade supprime les relations)
     await prisma.user.delete({
-      where: { id: session.user.id },
+      where: { id: currentUser.id },
     });
 
     return { data: { success: true }, error: null };

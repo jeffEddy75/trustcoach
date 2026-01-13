@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   createBookingSchema,
@@ -104,11 +104,7 @@ export async function createBookingAction(
   data: CreateBookingInput
 ): Promise<ActionResult<BookingWithRelations>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Valider les données
     const validated = createBookingSchema.parse(data);
@@ -167,7 +163,7 @@ export async function createBookingAction(
     // Créer la réservation
     const booking = await prisma.booking.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         coachId: coach.id,
         scheduledAt: scheduledDate,
         duration: validated.duration,
@@ -198,11 +194,7 @@ export async function cancelBookingAction(
   reason?: string
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -214,9 +206,9 @@ export async function cancelBookingAction(
     }
 
     // Vérifier que l'utilisateur peut annuler (propriétaire ou coach)
-    const isOwner = booking.userId === session.user.id;
-    const isCoach = booking.coach.userId === session.user.id;
-    const isAdmin = session.user.role === "ADMIN";
+    const isOwner = booking.userId === user.id;
+    const isCoach = booking.coach.userId === user.id;
+    const isAdmin = user.role === "ADMIN";
 
     if (!isOwner && !isCoach && !isAdmin) {
       return { data: null, error: "Accès non autorisé" };
@@ -237,7 +229,7 @@ export async function cancelBookingAction(
       data: {
         status: "CANCELLED",
         cancelledAt: new Date(),
-        cancelledBy: session.user.id,
+        cancelledBy: user.id,
         cancellationReason: reason,
       },
     });
@@ -256,14 +248,10 @@ export async function getUserBookingsAction(): Promise<
   ActionResult<BookingWithRelations[]>
 > {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const bookings = await prisma.booking.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       include: {
         coach: { include: { user: true } },
         user: true,

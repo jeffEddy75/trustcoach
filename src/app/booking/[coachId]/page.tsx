@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -40,9 +40,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const { coachId } = await params;
 
   // Vérifier l'authentification
-  const session = await auth();
-  if (!session?.user) {
-    redirect(`/login?callbackUrl=/booking/${coachId}`);
+  const user = await getCurrentDbUser();
+  if (!user) {
+    redirect(`/sign-in?redirect_url=/booking/${coachId}`);
   }
 
   // Récupérer le coach
@@ -61,7 +61,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
   }
 
   // Vérifier que l'utilisateur ne réserve pas chez lui-même
-  if (coach.userId === session.user.id) {
+  if (coach.userId === user.id) {
     redirect(`/coaches/${coachId}`);
   }
 

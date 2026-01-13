@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { coachProfileSchema, type CoachProfileInput } from "@/validations/coach.schema";
 import type { ActionResult } from "@/types";
@@ -11,14 +11,10 @@ import type { Coach } from "@prisma/client";
  */
 export async function getCoachProfileAction(): Promise<ActionResult<Coach>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const coach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!coach) {
@@ -39,14 +35,10 @@ export async function updateCoachProfileAction(
   data: CoachProfileInput
 ): Promise<ActionResult<Coach>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Vérifier que l'utilisateur est coach
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
@@ -55,7 +47,7 @@ export async function updateCoachProfileAction(
 
     // Vérifier que le coach existe
     const existingCoach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!existingCoach) {
@@ -64,7 +56,7 @@ export async function updateCoachProfileAction(
 
     // Mettre à jour le profil
     const updatedCoach = await prisma.coach.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: {
         bio: validated.bio,
         headline: validated.headline,
@@ -100,13 +92,9 @@ export async function updateCoachAvatarAction(
   avatarUrl: string
 ): Promise<ActionResult<{ avatarUrl: string }>> {
   try {
-    const session = await auth();
+    const user = await requireDbUser();
 
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
@@ -116,7 +104,7 @@ export async function updateCoachAvatarAction(
     }
 
     await prisma.coach.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { avatarUrl },
     });
 
@@ -134,13 +122,9 @@ export async function updateCoachVideoAction(
   videoUrl: string | null
 ): Promise<ActionResult<{ videoUrl: string | null }>> {
   try {
-    const session = await auth();
+    const user = await requireDbUser();
 
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
@@ -161,7 +145,7 @@ export async function updateCoachVideoAction(
     }
 
     await prisma.coach.update({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       data: { videoUrl },
     });
 
@@ -181,16 +165,12 @@ export async function createCoachProfileAction(
   initialData?: Partial<CoachProfileInput>
 ): Promise<ActionResult<Coach>> {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const currentUser = await requireDbUser();
 
     // Seul un admin peut créer un profil coach pour quelqu'un d'autre
     // ou l'utilisateur lui-même (auto-inscription coach)
-    const isAdmin = session.user.role === "ADMIN";
-    const isSelf = session.user.id === userId;
+    const isAdmin = currentUser.role === "ADMIN";
+    const isSelf = currentUser.id === userId;
 
     if (!isAdmin && !isSelf) {
       return { data: null, error: "Accès non autorisé" };

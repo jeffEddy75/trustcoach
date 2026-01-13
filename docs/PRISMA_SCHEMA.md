@@ -17,6 +17,8 @@
        │
        ├──▶ OrganizationMember ──▶ Organization (B2B)
        │
+       ├──▶ Conversation ──▶ ChatMessage (Messagerie)
+       │
        ▼                   
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   Booking   │────▶│   Session   │────▶│   Consent   │
@@ -33,6 +35,7 @@
 ### Légende
 - **Modèles B2C** : User, Coach, Booking, Session, Payment
 - **Modèles B2B** : Organization, OrganizationMember, CoachReference, Goal, CoachDocument
+- **Messagerie** : Conversation, ChatMessage
 
 ---
 
@@ -105,6 +108,9 @@ model User {
   // B2B : Appartenance à une organisation
   organizations OrganizationMember[]
   goals         Goal[]
+  
+  // Messagerie
+  conversations Conversation[]
   
   // Timestamps
   createdAt     DateTime  @default(now())
@@ -187,6 +193,7 @@ model Coach {
   consents          Consent[]
   references        CoachReference[]    // Références entreprises
   certifications    Certification[]     // Diplômes et certifications
+  conversations     Conversation[]      // Messagerie
   
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -548,6 +555,71 @@ enum ConsentType {
 }
 
 // ============================================
+// MESSAGERIE INTÉGRÉE (Phase 3.5 - validé Gemini)
+// ============================================
+
+model Conversation {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  coachId       String
+  coach         Coach              @relation(fields: [coachId], references: [id])
+  
+  // Statut de la conversation
+  status        ConversationStatus @default(PROSPECT)
+  
+  // Pour tri performant des conversations (décision Gemini)
+  lastMessageAt DateTime           @default(now())
+  
+  // Relations
+  messages      ChatMessage[]
+  
+  // Timestamps
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([userId, coachId])
+  @@index([userId])
+  @@index([coachId])
+  @@index([lastMessageAt])
+}
+
+enum ConversationStatus {
+  PROSPECT      // Avant première réservation (limité à 3 messages USER)
+  ACTIVE        // Après paiement confirmé (illimité) - Transition auto
+  ARCHIVED      // Archivé manuellement par user ou coach
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Expéditeur (peut être le user OU le coach)
+  senderId       String
+  senderType     SenderType
+  
+  // Contenu (texte uniquement - pas de pièces jointes en V1)
+  content        String       @db.Text
+  
+  // Pas de "readAt" visible côté UI (décision Gemini : pas de "Vu")
+  // Gardé en BDD pour stats internes uniquement
+  readAt         DateTime?
+  
+  // Timestamps
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+enum SenderType {
+  USER
+  COACH
+}
+
+// ============================================
 // CHECK-IN (Suivi quotidien - Phase 5)
 // ============================================
 
@@ -857,6 +929,19 @@ enum OfflineUploadStatus {
 | Confidentialité par défaut | `isConfidential = true` |
 | Auto-expiration | Si `expiresAt` défini, suppression automatique |
 | Analyse IA opt-in | L'IA ne lit le document que si demandé explicitement |
+
+### Conversation (Messagerie) — Décisions validées Gemini
+| Règle | Description |
+|-------|-------------|
+| Mode PROSPECT | Max 3 messages pour l'utilisateur avant paiement |
+| Mode ACTIVE | Illimité après paiement confirmé (transition automatique) |
+| Coach sans limite | Le coach peut toujours répondre |
+| Une conversation par paire | Unique sur `[userId, coachId]` |
+| Tri par lastMessageAt | Mis à jour à chaque nouveau message |
+| Pas de "Vu" | Respecte le temps asynchrone du coach |
+| Texte uniquement | Pas de pièces jointes en V1 |
+| Archivage manuel | Pas d'auto-archivage |
+| Scan IA pré-brief | Reporté en V2 |
 
 ---
 

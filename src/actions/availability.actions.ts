@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   addAvailabilitySchema,
@@ -16,14 +16,10 @@ export async function getAvailabilitiesAction(): Promise<
   ActionResult<Availability[]>
 > {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const coach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       include: {
         availabilities: {
           orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
@@ -49,13 +45,9 @@ export async function addAvailabilityAction(
   data: AddAvailabilityInput
 ): Promise<ActionResult<Availability>> {
   try {
-    const session = await auth();
+    const user = await requireDbUser();
 
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
@@ -64,7 +56,7 @@ export async function addAvailabilityAction(
 
     // Récupérer le coach
     const coach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!coach) {
@@ -119,19 +111,15 @@ export async function deleteAvailabilityAction(
   id: string
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const session = await auth();
+    const user = await requireDbUser();
 
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
     // Récupérer le coach
     const coach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!coach) {
@@ -170,19 +158,15 @@ export async function updateAllAvailabilitiesAction(
   availabilities: AddAvailabilityInput[]
 ): Promise<ActionResult<Availability[]>> {
   try {
-    const session = await auth();
+    const user = await requireDbUser();
 
-    if (!session?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
-
-    if (session.user.role !== "COACH" && session.user.role !== "ADMIN") {
+    if (user.role !== "COACH" && user.role !== "ADMIN") {
       return { data: null, error: "Accès non autorisé" };
     }
 
     // Récupérer le coach
     const coach = await prisma.coach.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!coach) {

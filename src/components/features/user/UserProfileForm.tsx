@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,6 @@ import {
   changePasswordAction,
   deleteAccountAction,
 } from "@/actions/user.actions";
-import { signOut } from "next-auth/react";
 import type { User } from "@prisma/client";
 import { Loader2, AlertTriangle } from "lucide-react";
 
@@ -32,6 +32,7 @@ interface UserProfileFormProps {
 
 export function UserProfileForm({ user }: UserProfileFormProps) {
   const router = useRouter();
+  const { signOut } = useClerk();
   const [isPending, startTransition] = useTransition();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -96,7 +97,7 @@ export function UserProfileForm({ user }: UserProfileFormProps) {
       }
 
       toast.success("Compte supprimé");
-      await signOut({ callbackUrl: "/" });
+      signOut({ redirectUrl: "/" });
     });
   };
 

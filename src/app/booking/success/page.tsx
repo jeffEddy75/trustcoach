@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -25,9 +25,9 @@ export default async function BookingSuccessPage({ searchParams }: SuccessPagePr
   const { booking_id } = await searchParams;
 
   // Vérifier l'authentification
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/login");
+  const user = await getCurrentDbUser();
+  if (!user) {
+    redirect("/sign-in");
   }
 
   if (!booking_id) {
@@ -48,7 +48,7 @@ export default async function BookingSuccessPage({ searchParams }: SuccessPagePr
   }
 
   // Vérifier que l'utilisateur est le propriétaire
-  if (booking.userId !== session.user.id) {
+  if (booking.userId !== user.id) {
     redirect("/");
   }
 

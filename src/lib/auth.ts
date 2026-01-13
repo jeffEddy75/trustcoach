@@ -1,110 +1,107 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
-import { compare } from "bcryptjs";
-import { prisma } from "./prisma";
-import type { Role } from "@prisma/client";
-import type { Adapter } from "next-auth/adapters";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
+import type { User, Coach } from "@prisma/client";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      name: string | null;
-      image: string | null;
-      role: Role;
-    };
+export type UserWithCoach = User & { coach: Coach | null };
+
+/**
+ * Récupère le user Prisma lié à l'utilisateur Clerk connecté.
+ * Crée automatiquement le user Prisma si c'est la première connexion.
+ */
+export async function getCurrentDbUser(): Promise<UserWithCoach | null> {
+  const { userId: clerkUserId } = await auth();
+  if (!clerkUserId) return null;
+
+  // Chercher le user existant par clerkUserId
+  let user = await prisma.user.findUnique({
+    where: { clerkUserId },
+    include: { coach: true },
+  });
+
+  // Si pas trouvé, créer automatiquement
+  if (!user) {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return null;
+
+    const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+    const name =
+      `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
+    const image = clerkUser.imageUrl;
+
+    // Vérifier si un user existe déjà avec cet email (migration)
+    const existingUserByEmail = await prisma.user.findUnique({
+      where: { email },
+      include: { coach: true },
+    });
+
+    if (existingUserByEmail) {
+      // Lier le compte Clerk à l'utilisateur existant
+      user = await prisma.user.update({
+        where: { id: existingUserByEmail.id },
+        data: { clerkUserId, image: image || existingUserByEmail.image },
+        include: { coach: true },
+      });
+      console.log(
+        `[AUTH] Linked existing user ${existingUserByEmail.email} to Clerk ID ${clerkUserId}`
+      );
+    } else {
+      // Créer un nouveau user
+      user = await prisma.user.create({
+        data: {
+          clerkUserId,
+          email,
+          name: name || "Utilisateur",
+          image,
+          role: "USER",
+        },
+        include: { coach: true },
+      });
+      console.log(`[AUTH] Created new user ${email} with Clerk ID ${clerkUserId}`);
+    }
   }
 
-  interface User {
-    role: Role;
-  }
+  return user;
 }
 
-// JWT token type extension is handled inline via type assertions
+/**
+ * Récupère le user Prisma ou throw une erreur si non connecté.
+ */
+export async function requireDbUser(): Promise<UserWithCoach> {
+  const user = await getCurrentDbUser();
+  if (!user) {
+    throw new Error("Non authentifié");
+  }
+  return user;
+}
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma) as Adapter,
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Mot de passe", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+/**
+ * Récupère le user Prisma + son profil coach, ou throw si pas coach.
+ */
+export async function requireCoach(): Promise<{
+  user: UserWithCoach;
+  coach: Coach;
+}> {
+  const user = await getCurrentDbUser();
+  if (!user) {
+    throw new Error("Non authentifié");
+  }
+  if (!user.coach) {
+    throw new Error("Accès coach requis");
+  }
+  return { user, coach: user.coach };
+}
 
-        const email = credentials.email as string;
-        const password = credentials.password as string;
+/**
+ * Récupère juste le clerkUserId (pour les cas simples).
+ */
+export async function getClerkUserId(): Promise<string | null> {
+  const { userId } = await auth();
+  return userId;
+}
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const isPasswordValid = await compare(password, user.password);
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
-      }
-      return session;
-    },
-    async signIn({ user, account }) {
-      // Pour OAuth (Google), mettre à jour le rôle USER par défaut si nouveau
-      if (account?.provider === "google" && user.email) {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email },
-        });
-
-        if (!existingUser) {
-          // L'utilisateur sera créé par l'adapter avec le rôle par défaut
-          return true;
-        }
-      }
-      return true;
-    },
-  },
-});
+/**
+ * Récupère les infos Clerk de l'utilisateur (pour l'avatar, etc.).
+ */
+export async function getClerkUser() {
+  return await currentUser();
+}

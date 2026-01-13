@@ -1,28 +1,46 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+/**
+ * @deprecated Utiliser useCurrentUser à la place pour les données Prisma
+ * Ce hook est conservé pour la compatibilité avec les composants existants
+ * mais redirige vers useCurrentUser.
+ */
+
+import { useCurrentUser } from "./useCurrentUser";
 import type { Role } from "@prisma/client";
 
 export function useAuth() {
-  const { data: session, status } = useSession();
+  const {
+    user,
+    isLoading,
+    isSignedIn,
+    isAuthenticated,
+    isCoach,
+    isAdmin,
+    isUser: isUserRole,
+    clerkUser,
+  } = useCurrentUser();
 
-  const isLoading = status === "loading";
-  const isAuthenticated = status === "authenticated";
-  const user = session?.user;
-
-  const isAdmin = user?.role === "ADMIN";
-  const isCoach = user?.role === "COACH" || isAdmin;
-  const isUser = user?.role === "USER";
-
+  // Compatibilité avec l'ancien format
   const hasRole = (role: Role) => user?.role === role || user?.role === "ADMIN";
 
   return {
-    user,
+    // Format compatible avec l'ancien useAuth
+    user: user ? {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image || clerkUser?.imageUrl,
+      role: user.role,
+    } : null,
     isLoading,
-    isAuthenticated,
+    isAuthenticated: isAuthenticated,
     isAdmin,
     isCoach,
-    isUser,
+    isUser: isUserRole,
     hasRole,
+    // Nouveaux champs Clerk
+    isSignedIn,
+    clerkUser,
   };
 }

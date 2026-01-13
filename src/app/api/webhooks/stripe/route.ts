@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { constructWebhookEvent, HANDLED_EVENTS } from "@/services/stripe";
+import { upgradeConversationToActiveAction } from "@/actions/messaging.actions";
 import type Stripe from "stripe";
 
 /**
@@ -106,6 +107,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log(`[STRIPE_WEBHOOK] Booking ${bookingId} confirmed after payment`);
+
+  // Upgrader la conversation en ACTIVE si elle existe
+  const upgradeResult = await upgradeConversationToActiveAction(
+    booking.userId,
+    booking.coachId
+  );
+  if (upgradeResult.data) {
+    console.log(`[STRIPE_WEBHOOK] Conversation upgraded to ACTIVE for user ${booking.userId}`);
+  }
 
   // TODO: Envoyer email de confirmation au client et au coach
   // await sendBookingConfirmationEmail(booking);

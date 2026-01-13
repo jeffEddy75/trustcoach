@@ -22,6 +22,7 @@ interface CoachesPageProps {
   searchParams: Promise<{
     q?: string;
     specialty?: string;
+    city?: string;
     mode?: string;
     b2b?: string;
     minPrice?: string;
@@ -34,6 +35,7 @@ async function getCoaches(searchParams: Awaited<CoachesPageProps["searchParams"]
   const {
     q,
     specialty,
+    city,
     mode,
     b2b,
     minPrice,
@@ -80,6 +82,11 @@ async function getCoaches(searchParams: Awaited<CoachesPageProps["searchParams"]
     where.specialties = { has: specialty };
   }
 
+  // City filter
+  if (city) {
+    where.city = { equals: city, mode: "insensitive" };
+  }
+
   // Mode filter
   if (mode === "remote") {
     where.offersRemote = true;
@@ -122,16 +129,19 @@ async function getCoaches(searchParams: Awaited<CoachesPageProps["searchParams"]
     prisma.coach.count({ where }),
     prisma.coach.findMany({
       where: { verified: true },
-      select: { specialties: true },
+      select: { specialties: true, city: true },
     }),
   ]);
 
-  // Extract all unique specialties
+  // Extract all unique specialties and cities
   const specialtiesSet = new Set<string>();
+  const citiesSet = new Set<string>();
   allCoaches.forEach((coach) => {
     coach.specialties.forEach((s) => specialtiesSet.add(s));
+    if (coach.city) citiesSet.add(coach.city);
   });
   const allSpecialties = Array.from(specialtiesSet).sort();
+  const allCities = Array.from(citiesSet).sort();
 
   const totalPages = Math.ceil(totalCount / COACHES_PER_PAGE);
 
@@ -141,6 +151,7 @@ async function getCoaches(searchParams: Awaited<CoachesPageProps["searchParams"]
     filteredCount: totalCount,
     totalCoachesCount: allCoaches.length,
     allSpecialties,
+    allCities,
     currentPage,
     totalPages,
   };
@@ -167,6 +178,7 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
     filteredCount,
     totalCoachesCount,
     allSpecialties,
+    allCities,
     currentPage,
     totalPages,
   } = await getCoaches(params);
@@ -198,6 +210,7 @@ export default async function CoachesPage({ searchParams }: CoachesPageProps) {
                 <Suspense fallback={<Skeleton className="h-96 w-full" />}>
                   <CoachFilters
                     specialties={allSpecialties}
+                    cities={allCities}
                     totalCount={totalCoachesCount}
                     filteredCount={filteredCount}
                   />

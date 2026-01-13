@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -66,9 +66,9 @@ const statusConfig: Record<
 export default async function BookingDetailPage({ params }: BookingDetailPageProps) {
   const { id } = await params;
 
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/login");
+  const user = await getCurrentDbUser();
+  if (!user) {
+    redirect("/sign-in");
   }
 
   const booking = await prisma.booking.findUnique({
@@ -85,7 +85,7 @@ export default async function BookingDetailPage({ params }: BookingDetailPagePro
   }
 
   // Vérifier que l'utilisateur est le propriétaire
-  if (booking.userId !== session.user.id) {
+  if (booking.userId !== user.id) {
     redirect("/user/bookings");
   }
 

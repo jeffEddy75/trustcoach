@@ -19,8 +19,11 @@ export function MobileNav({ items }: MobileNavProps) {
     <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-background border-t z-50">
       <div className="flex items-center justify-around h-16 px-2">
         {visibleItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          // Pour les dashboards racine (/user, /coach), seule l'égalité exacte compte
+          const isRootDashboard = item.href === "/user" || item.href === "/coach";
+          const isActive = isRootDashboard
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
 
           return (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { logoutAction } from "@/actions/auth.actions";
 import { getInitials } from "@/lib/utils";
 import { Menu, X, User, LogOut, Settings, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
@@ -25,13 +25,13 @@ const publicNavItems = [
 export function Header() {
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading, isCoach } = useAuth();
+  const { signOut } = useClerk();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const dashboardHref = isCoach ? "/coach" : "/user";
 
-  async function handleLogout() {
-    await logoutAction();
-    window.location.href = "/";
+  function handleLogout() {
+    signOut({ redirectUrl: "/" });
   }
 
   return (
@@ -134,12 +134,12 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <div className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" asChild>
-                  <Link href="/login">Connexion</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/register">S&apos;inscrire</Link>
-                </Button>
+                <SignInButton mode="modal">
+                  <Button variant="ghost">Connexion</Button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <Button>S&apos;inscrire</Button>
+                </SignUpButton>
               </div>
             )}
 
@@ -180,20 +180,22 @@ export function Header() {
               {!isAuthenticated && (
                 <>
                   <div className="h-px bg-border my-2" />
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"
-                  >
-                    Connexion
-                  </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground text-center"
-                  >
-                    S&apos;inscrire
-                  </Link>
+                  <SignInButton mode="modal">
+                    <button
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted text-left"
+                    >
+                      Connexion
+                    </button>
+                  </SignInButton>
+                  <SignUpButton mode="modal">
+                    <button
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground text-center"
+                    >
+                      S&apos;inscrire
+                    </button>
+                  </SignUpButton>
                 </>
               )}
             </nav>

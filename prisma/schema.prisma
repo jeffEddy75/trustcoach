@@ -47,6 +47,7 @@ model VerificationToken {
 
 model User {
   id            String    @id @default(cuid())
+  clerkUserId   String?   @unique  // ID Clerk pour la migration auth
   email         String    @unique
   emailVerified DateTime?
   name          String?
@@ -60,6 +61,7 @@ model User {
   bookings      Booking[]
   checkIns      CheckIn[]
   consents      Consent[]
+  conversations Conversation[]      // Messagerie
 
   // B2B : Appartenance à une organisation
   organizations OrganizationMember[]
@@ -70,6 +72,7 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   @@index([email])
+  @@index([clerkUserId])
 }
 
 enum Role {
@@ -146,6 +149,7 @@ model Coach {
   consents          Consent[]
   references        CoachReference[]    // Références entreprises
   certifications    Certification[]     // Diplômes et certifications
+  conversations     Conversation[]      // Messagerie
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -753,4 +757,71 @@ enum OfflineUploadStatus {
   UPLOADING     // Upload en cours
   COMPLETED     // Upload réussi
   FAILED        // Échec définitif (après X retries)
+}
+
+// ============================================
+// MESSAGERIE COACH <-> COACHÉ
+// Phase 3.5 : Communication avant/après séances
+// ============================================
+
+model Conversation {
+  id            String              @id @default(cuid())
+
+  // Participants
+  userId        String
+  user          User                @relation(fields: [userId], references: [id])
+  coachId       String
+  coach         Coach               @relation(fields: [coachId], references: [id])
+
+  // Statut de la conversation
+  status        ConversationStatus  @default(PROSPECT)
+
+  // Limite de messages pour les prospects (avant 1ère réservation payée)
+  prospectMessageCount Int          @default(0)
+
+  // Dernier message (dénormalisé pour tri)
+  lastMessageAt DateTime?
+  lastMessagePreview String?        // Aperçu du dernier message (50 chars)
+
+  // Relations
+  messages      ChatMessage[]
+
+  // Timestamps
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([userId, coachId])
+  @@index([userId])
+  @@index([coachId])
+  @@index([lastMessageAt])
+}
+
+enum ConversationStatus {
+  PROSPECT      // Avant 1ère réservation payée (limité à 3 messages/user)
+  ACTIVE        // Au moins 1 réservation payée (messages illimités)
+  ARCHIVED      // Conversation archivée
+}
+
+model ChatMessage {
+  id              String        @id @default(cuid())
+  conversationId  String
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Expéditeur
+  senderId        String        // userId du sender (user OU coach.userId)
+  senderRole      SenderRole    // USER ou COACH
+
+  // Contenu
+  content         String        @db.Text
+
+  // Timestamps
+  createdAt       DateTime      @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+enum SenderRole {
+  USER
+  COACH
 }

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +26,14 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 export default async function UserBookingsPage() {
-  const session = await auth();
+  const user = await getCurrentDbUser();
 
-  if (!session?.user) {
+  if (!user) {
     return null;
   }
 
   const bookings = await prisma.booking.findMany({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
     include: {
       coach: {
         include: { user: true },

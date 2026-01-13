@@ -31,8 +31,12 @@ export function Sidebar({ items, title }: SidebarProps) {
         )}
         <nav className="flex-1 px-2 space-y-1">
           {items.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+            // Pour les dashboards racine (/user, /coach), seule l'égalité exacte compte
+            // Pour les sous-pages, on vérifie si le pathname commence par le href
+            const isRootDashboard = item.href === "/user" || item.href === "/coach";
+            const isActive = isRootDashboard
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
 
             return (

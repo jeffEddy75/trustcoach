@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
 };
 
 export default async function UserProfilePage() {
-  const session = await auth();
+  const currentUser = await getCurrentDbUser();
 
-  if (!session?.user) {
+  if (!currentUser) {
     return null;
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: currentUser.id },
     include: {
       organizations: {
         include: { organization: true },

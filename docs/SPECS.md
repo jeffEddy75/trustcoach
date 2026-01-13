@@ -288,6 +288,199 @@ enum BookingStatus {
 
 ---
 
+### PHASE 3.5 : MESSAGERIE ASYNCHRONE (Semaine 6-7) — Validé Gemini
+
+> Feature stratégique pour éviter la désintermédiation (fuite vers WhatsApp).
+> Pattern : Polling TanStack Query 10s (pas de WebSocket en MVP).
+
+#### Décisions de design validées
+
+| Aspect | Décision |
+|--------|----------|
+| Temps réel | Polling TanStack Query `refetchInterval: 10000` |
+| Transition PROSPECT → ACTIVE | Auto dès paiement Stripe confirmé |
+| Indicateur "Vu" / "En ligne" | ❌ NON (respecte l'asynchrone) |
+| Pièces jointes | ❌ Texte uniquement (PDF via CoachDocument) |
+| Archivage | Manuel uniquement |
+| Modération | Lien "Signaler un problème" (pas de système en V1) |
+| Scan IA pré-brief | Reporté V2 |
+
+---
+
+#### Task 3.6 : Modèle de conversation (1h)
+**Objectif** : Structure de données pour le chat
+
+**Critères d'acceptation** :
+- [ ] Table `Conversation` avec `lastMessageAt` pour tri performant
+- [ ] Table `ChatMessage` avec `senderId` et `senderType`
+- [ ] Enum `ConversationStatus` : PROSPECT, ACTIVE, ARCHIVED
+- [ ] Index sur `lastMessageAt` pour tri rapide
+- [ ] Migration appliquée
+
+**Schéma** : Voir PRISMA_SCHEMA.md section "Messagerie intégrée"
+
+---
+
+#### Task 3.7 : Modal "Contacter un coach" (1h)
+**Objectif** : Préparer l'utilisateur avant d'ouvrir le chat
+
+**Critères d'acceptation** :
+- [ ] Bouton "Contacter" sur profil coach → ouvre modal
+- [ ] Modal explique :
+  - "Cet espace est dédié à la préparation de votre accompagnement"
+  - "Vous pouvez envoyer jusqu'à 3 messages avant votre première séance"
+- [ ] Bouton "Commencer la discussion" → ouvre/crée conversation
+- [ ] Design Serene Clarity (pas intrusif)
+
+---
+
+#### Task 3.8 : Liste des conversations (2h)
+**Objectif** : Voir toutes ses conversations
+
+**Critères d'acceptation** :
+- [ ] Page `/dashboard/user/messages` (côté user)
+- [ ] Page `/dashboard/coach/messages` (côté coach)
+- [ ] Liste triée par `lastMessageAt` DESC
+- [ ] Chaque item affiche : avatar, nom, dernier message (tronqué), date
+- [ ] Badge pastille Sage Green si messages non lus
+- [ ] Empty state : "Commencez une discussion avec un coach pour éclaircir vos objectifs."
+
+**Design** :
+```
+┌─────────────────────────────────────┐
+│ 💬 Mes conversations                │
+├─────────────────────────────────────┤
+│ ┌─────┐                             │
+│ │ 👤  │ Marie Dupont          ● 2   │
+│ └─────┘ "Merci pour votre..."  14h  │
+├─────────────────────────────────────┤
+│ ┌─────┐                             │
+│ │ 👤  │ Thomas Martin               │
+│ └─────┘ "Je vous confirme..."  Hier │
+└─────────────────────────────────────┘
+```
+
+---
+
+#### Task 3.9 : Vue conversation / Chat (2h)
+**Objectif** : Interface de chat style iMessage
+
+**Critères d'acceptation** :
+- [ ] Page `/dashboard/user/messages/[conversationId]`
+- [ ] Header : avatar + nom du coach/user + bouton retour
+- [ ] Historique des messages (scroll infini si > 50)
+- [ ] Bulles de message avec `radius-lg`, coin pointu côté expéditeur
+- [ ] Date du message visible (pas d'heure exacte pour rester "zen")
+- [ ] PAS de "Vu" ni "En ligne" (décision Gemini)
+- [ ] Polling TanStack Query toutes les 10s
+
+**Design Serene Clarity** :
+```
+┌─────────────────────────────────────┐
+│ ← Marie Dupont                      │
+├─────────────────────────────────────┤
+│                                     │
+│         Bonjour, j'aimerais        │
+│         savoir si votre            │
+│         méthode convient...        │
+│                          Aujourd'hui│
+│                                     │
+│  Bonjour ! Avec plaisir.           │
+│  Ma méthode s'adapte à             │
+│  chaque profil...                  │
+│  Hier                              │
+│                                     │
+├─────────────────────────────────────┤
+│ [  Votre message...          ] [→] │
+└─────────────────────────────────────┘
+```
+
+---
+
+#### Task 3.10 : Input et envoi de message (1h)
+**Objectif** : Composer et envoyer un message
+
+**Critères d'acceptation** :
+- [ ] Textarea auto-expand (jusqu'à 4-5 lignes)
+- [ ] Bouton envoi (icône →)
+- [ ] Envoi au clic OU touche Entrée (Shift+Entrée = saut de ligne)
+- [ ] Désactivé pendant l'envoi (loading state)
+- [ ] Optimistic update (message apparaît immédiatement)
+- [ ] Mise à jour `lastMessageAt` de la conversation
+
+---
+
+#### Task 3.11 : Garde-fou 3 messages (1h)
+**Objectif** : Bloquer les users PROSPECT après 3 messages
+
+**Règles métier** :
+```typescript
+// Dans sendMessage action :
+if (conversation.status === 'PROSPECT' && senderType === 'USER') {
+  const userMessageCount = await prisma.chatMessage.count({
+    where: { conversationId, senderType: 'USER' }
+  });
+  if (userMessageCount >= 3) {
+    return { error: 'LIMIT_REACHED' };
+  }
+}
+```
+
+**Critères d'acceptation** :
+- [ ] Compteur de messages USER en mode PROSPECT
+- [ ] À 3/3 : input désactivé + message d'alerte
+- [ ] Wording : "Vous avez atteint la limite de messages gratuits. Pour approfondir cet échange et préparer votre travail, réservez votre première séance avec [Nom du Coach]."
+- [ ] Bouton CTA "Réserver une séance" dans l'alerte
+- [ ] Le coach peut toujours répondre (pas de limite)
+
+---
+
+#### Task 3.12 : Transition auto PROSPECT → ACTIVE (30min)
+**Objectif** : Débloquer la messagerie après paiement
+
+**Critères d'acceptation** :
+- [ ] Dans le webhook Stripe `checkout.session.completed` :
+  - Trouver la conversation entre user et coach
+  - Si existe et status === PROSPECT → passer en ACTIVE
+- [ ] L'utilisateur peut immédiatement envoyer plus de messages
+
+---
+
+#### Task 3.13 : Badge notifications (1h)
+**Objectif** : Alerter des nouveaux messages
+
+**Critères d'acceptation** :
+- [ ] Badge numérique dans le menu (nombre de conversations avec non-lus)
+- [ ] Pastille Sage Green (#88A096) sur l'icône messages
+- [ ] Calcul : messages où `readAt IS NULL` et `senderId ≠ currentUser`
+- [ ] Mise à jour du `readAt` quand on ouvre la conversation
+
+---
+
+#### Task 3.14 : Email notification (1h)
+**Objectif** : Alerter par email si message non lu
+
+**Critères d'acceptation** :
+- [ ] Job/cron : si message non lu depuis > 1h → envoyer email
+- [ ] Email simple : "Vous avez un nouveau message de [Nom]"
+- [ ] Lien direct vers la conversation
+- [ ] Max 1 email par conversation par 24h (anti-spam)
+- [ ] Désactivable dans les préférences (nice to have)
+
+---
+
+#### Task 3.15 : Archivage manuel (30min)
+**Objectif** : Permettre d'archiver une conversation
+
+**Critères d'acceptation** :
+- [ ] Menu "..." sur la conversation → "Archiver"
+- [ ] Confirmation avant archivage
+- [ ] Conversation disparaît de la liste principale
+- [ ] Section "Archives" accessible (nice to have)
+- [ ] Possibilité de désarchiver
+
+---
+
 ### PHASE 4 : FEATURE IA - RÉSUMÉ DE SÉANCE (Semaine 7-8)
 
 > ⚠️ C'est la KILLER FEATURE. À soigner particulièrement.

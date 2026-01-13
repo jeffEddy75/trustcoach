@@ -1,3 +1,11 @@
+/**
+ * DÉSACTIVÉ - Migration vers Clerk
+ *
+ * Le ClerkProvider est maintenant utilisé dans app/layout.tsx.
+ * Ce fichier est conservé pour référence uniquement.
+ */
+
+/*
 "use client";
 
 import { SessionProvider as NextAuthSessionProvider } from "next-auth/react";
@@ -15,3 +23,7 @@ export function SessionProvider({ children, session }: Props) {
     </NextAuthSessionProvider>
   );
 }
+*/
+
+// Export vide pour éviter les erreurs d'import
+export {};

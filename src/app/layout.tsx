@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Inter, Literata } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -76,15 +78,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body
-        className={`${dmSans.variable} ${inter.variable} ${literata.variable} font-body antialiased bg-background text-foreground`}
-      >
-        <SessionProvider>
-          {children}
+    <ClerkProvider localization={frFR}>
+      <html lang="fr" suppressHydrationWarning>
+        <body
+          className={`${dmSans.variable} ${inter.variable} ${literata.variable} font-body antialiased bg-background text-foreground`}
+        >
+          <QueryProvider>
+            {children}
+          </QueryProvider>
           <Toaster />
-        </SessionProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

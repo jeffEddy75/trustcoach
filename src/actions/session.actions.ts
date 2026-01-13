@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { ActionResult } from "@/types";
 import type { Session, Consent, MarkedMoment, ConsentType } from "@prisma/client";
@@ -17,11 +17,7 @@ export async function createSessionAction(
   bookingId: string
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Vérifier que la réservation existe et appartient à l'utilisateur
     const booking = await prisma.booking.findUnique({
@@ -34,8 +30,8 @@ export async function createSessionAction(
     }
 
     // Vérifier les droits
-    const isOwner = booking.userId === authSession.user.id;
-    const isCoach = booking.coach.userId === authSession.user.id;
+    const isOwner = booking.userId === user.id;
+    const isCoach = booking.coach.userId === user.id;
 
     if (!isOwner && !isCoach) {
       return { data: null, error: "Accès non autorisé" };
@@ -73,11 +69,7 @@ export async function saveConsentsAction(
   }
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Récupérer la session et la réservation
     const session = await prisma.session.findUnique({
@@ -90,7 +82,7 @@ export async function saveConsentsAction(
     }
 
     const booking = session.booking;
-    const isOwner = booking.userId === authSession.user.id;
+    const isOwner = booking.userId === user.id;
 
     if (!isOwner) {
       return { data: null, error: "Accès non autorisé" };
@@ -113,7 +105,7 @@ export async function saveConsentsAction(
     await prisma.consent.deleteMany({
       where: {
         sessionId,
-        userId: authSession.user.id,
+        userId: user.id,
       },
     });
 
@@ -123,7 +115,7 @@ export async function saveConsentsAction(
         await prisma.consent.create({
           data: {
             sessionId,
-            userId: authSession.user.id,
+            userId: user.id,
             coachId: booking.coachId,
             type,
             accepted: true,
@@ -148,11 +140,7 @@ export async function updateSessionStatusAction(
   errorMessage?: string
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    await requireDbUser();
 
     const session = await prisma.session.update({
       where: { id: sessionId },
@@ -182,11 +170,7 @@ export async function saveAudioAction(
   }
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    await requireDbUser();
 
     const session = await prisma.session.update({
       where: { id: sessionId },
@@ -214,11 +198,7 @@ export async function saveTranscriptAction(
   transcript: string
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    await requireDbUser();
 
     const session = await prisma.session.update({
       where: { id: sessionId },
@@ -244,11 +224,7 @@ export async function saveSummaryAction(
   summary: string
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    await requireDbUser();
 
     const session = await prisma.session.update({
       where: { id: sessionId },
@@ -280,11 +256,7 @@ export async function saveMarkedMomentsAction(
   moments: { timestamp: number; note?: string }[]
 ): Promise<ActionResult<{ success: boolean }>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    await requireDbUser();
 
     // Supprimer les anciens moments
     await prisma.markedMoment.deleteMany({
@@ -317,11 +289,7 @@ export async function getSessionAction(
   sessionId: string
 ): Promise<ActionResult<SessionWithRelations>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
@@ -338,9 +306,9 @@ export async function getSessionAction(
 
     // Vérifier les droits
     const booking = session.booking;
-    const isOwner = booking.userId === authSession.user.id;
-    const isCoach = booking.coach.userId === authSession.user.id;
-    const isAdmin = authSession.user.role === "ADMIN";
+    const isOwner = booking.userId === user.id;
+    const isCoach = booking.coach.userId === user.id;
+    const isAdmin = user.role === "ADMIN";
 
     if (!isOwner && !isCoach && !isAdmin) {
       return { data: null, error: "Accès non autorisé" };
@@ -361,11 +329,7 @@ export async function validateSummaryAction(
   finalSummary: string
 ): Promise<ActionResult<Session>> {
   try {
-    const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return { data: null, error: "Non authentifié" };
-    }
+    const user = await requireDbUser();
 
     // Vérifier que l'utilisateur est le coach
     const session = await prisma.session.findUnique({
@@ -377,7 +341,7 @@ export async function validateSummaryAction(
       return { data: null, error: "Session non trouvée" };
     }
 
-    if (session.booking.coach.userId !== authSession.user.id) {
+    if (session.booking.coach.userId !== user.id) {
       return { data: null, error: "Seul le coach peut valider le résumé" };
     }
 

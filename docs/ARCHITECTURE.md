@@ -890,6 +890,36 @@ npm install lottie-react  # Pour le mode Silence
 | **Bouton "Marquer"** | Pulse + haptic feedback |
 | **Check-in mood** | Emoji bounce on select |
 | **Timeline stagger** | Éléments apparaissent séquentiellement, 50ms delay chacun |
+| **Message envoyé** | Slide in from right, optimistic update |
+
+---
+
+### Pattern Messagerie (décision Gemini)
+
+> Pas de WebSocket en MVP — trop complexe pour la valeur ajoutée.
+
+**Polling avec TanStack Query** :
+
+```typescript
+// hooks/useMessages.ts
+import { useQuery } from '@tanstack/react-query';
+import { getConversationMessages } from '@/actions/message.actions';
+
+export function useMessages(conversationId: string) {
+  return useQuery({
+    queryKey: ['messages', conversationId],
+    queryFn: () => getConversationMessages(conversationId),
+    refetchInterval: 10000, // Polling toutes les 10s
+    refetchIntervalInBackground: false, // Stop si onglet inactif
+  });
+}
+```
+
+**Règles UX messagerie** :
+- Pas de "Vu" ni "En ligne" (respecte l'asynchrone)
+- Dates relatives ("Aujourd'hui", "Hier") pas d'heures exactes
+- Optimistic update à l'envoi (message apparaît immédiatement)
+- Empty state bienveillant
 
 ---
 

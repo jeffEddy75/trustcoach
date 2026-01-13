@@ -26,12 +26,14 @@ import {
 
 interface CoachFiltersProps {
   specialties: string[];
+  cities: string[];
   totalCount: number;
   filteredCount: number;
 }
 
 export function CoachFilters({
   specialties,
+  cities,
   totalCount,
   filteredCount,
 }: CoachFiltersProps) {
@@ -42,6 +44,7 @@ export function CoachFilters({
   // Current filter values from URL
   const searchFromUrl = searchParams.get("q") || "";
   const specialty = searchParams.get("specialty") || "";
+  const city = searchParams.get("city") || "";
   const mode = searchParams.get("mode") || "";
   const b2b = searchParams.get("b2b") === "true";
   const minPrice = searchParams.get("minPrice") || "";
@@ -94,7 +97,7 @@ export function CoachFilters({
     router.push("/coaches");
   };
 
-  const hasFilters = searchInput || specialty || mode || b2b || minPrice || maxPrice;
+  const hasFilters = searchInput || specialty || city || mode || b2b || minPrice || maxPrice;
 
   // Shared search input component
   const searchIcon = isPending ? (
@@ -141,6 +144,29 @@ export function CoachFilters({
                   {specialties.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* City */}
+            <div className="space-y-2">
+              <Label>Ville</Label>
+              <Select
+                value={city}
+                onValueChange={(value) =>
+                  updateParams({ city: value === "all" ? null : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Toutes les villes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les villes</SelectItem>
+                  {cities.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -262,6 +288,29 @@ export function CoachFilters({
                 </Select>
               </div>
 
+              {/* City */}
+              <div className="space-y-2">
+                <Label>Ville</Label>
+                <Select
+                  value={city}
+                  onValueChange={(value) =>
+                    updateParams({ city: value === "all" ? null : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Toutes les villes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les villes</SelectItem>
+                    {cities.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Mode */}
               <div className="space-y-2">
                 <Label>Mode de coaching</Label>
@@ -340,6 +389,14 @@ export function CoachFilters({
             <Badge variant="secondary" className="gap-1">
               {specialty}
               <button onClick={() => updateParams({ specialty: null })}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {city && (
+            <Badge variant="secondary" className="gap-1">
+              {city}
+              <button onClick={() => updateParams({ city: null })}>
                 <X className="h-3 w-3" />
               </button>
             </Badge>
