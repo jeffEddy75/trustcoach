@@ -1,9 +1,9 @@
-import { getCurrentDbUser } from "@/lib/auth";
+import { getCurrentDbUser, getClerkUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, FileText, ArrowRight } from "lucide-react";
+import { Calendar, Clock, FileText, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -13,10 +13,32 @@ export const metadata: Metadata = {
 };
 
 export default async function UserDashboardPage() {
+  // Vérifier d'abord si l'utilisateur est connecté à Clerk
+  const clerkUserId = await getClerkUserId();
+
+  if (!clerkUserId) {
+    // Pas connecté du tout -> sign-in
+    redirect("/sign-in");
+  }
+
+  // Récupérer ou créer le profil Prisma
   const user = await getCurrentDbUser();
 
   if (!user) {
-    redirect("/sign-in");
+    // L'utilisateur Clerk est connecté mais on n'a pas pu créer le profil Prisma
+    // Afficher un message d'attente plutôt qu'une boucle de redirection
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Chargement de votre profil...</p>
+        <p className="text-sm text-muted-foreground">
+          Si cette page persiste, essayez de vous{" "}
+          <a href="/sign-in" className="text-primary underline">
+            reconnecter
+          </a>
+        </p>
+      </div>
+    );
   }
 
   // Récupérer les stats

@@ -19,57 +19,75 @@ export async function getCurrentDbUser(): Promise<UserWithCoach | null> {
     return null;
   }
 
-  if (!clerkUserId) return null;
+  if (!clerkUserId) {
+    console.log("[AUTH] No clerkUserId found");
+    return null;
+  }
 
-  // Chercher le user existant par clerkUserId
-  let user = await prisma.user.findUnique({
-    where: { clerkUserId },
-    include: { coach: true },
-  });
-
-  // Si pas trouvé, créer automatiquement
-  if (!user) {
-    const clerkUser = await currentUser();
-    if (!clerkUser) return null;
-
-    const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-    const name =
-      `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
-    const image = clerkUser.imageUrl;
-
-    // Vérifier si un user existe déjà avec cet email (migration)
-    const existingUserByEmail = await prisma.user.findUnique({
-      where: { email },
+  try {
+    // Chercher le user existant par clerkUserId
+    let user = await prisma.user.findUnique({
+      where: { clerkUserId },
       include: { coach: true },
     });
 
-    if (existingUserByEmail) {
-      // Lier le compte Clerk à l'utilisateur existant
-      user = await prisma.user.update({
-        where: { id: existingUserByEmail.id },
-        data: { clerkUserId, image: image || existingUserByEmail.image },
-        include: { coach: true },
-      });
-      console.log(
-        `[AUTH] Linked existing user ${existingUserByEmail.email} to Clerk ID ${clerkUserId}`
-      );
-    } else {
-      // Créer un nouveau user
-      user = await prisma.user.create({
-        data: {
-          clerkUserId,
-          email,
-          name: name || "Utilisateur",
-          image,
-          role: "USER",
-        },
-        include: { coach: true },
-      });
-      console.log(`[AUTH] Created new user ${email} with Clerk ID ${clerkUserId}`);
-    }
-  }
+    // Si pas trouvé, créer automatiquement
+    if (!user) {
+      console.log(`[AUTH] No user found for clerkUserId ${clerkUserId}, creating...`);
 
-  return user;
+      const clerkUser = await currentUser();
+      if (!clerkUser) {
+        console.log("[AUTH] Could not get Clerk user data");
+        return null;
+      }
+
+      const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+      if (!email) {
+        console.log("[AUTH] No email found in Clerk user");
+        return null;
+      }
+
+      const name =
+        `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim();
+      const image = clerkUser.imageUrl;
+
+      // Vérifier si un user existe déjà avec cet email (migration)
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email },
+        include: { coach: true },
+      });
+
+      if (existingUserByEmail) {
+        // Lier le compte Clerk à l'utilisateur existant
+        user = await prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: { clerkUserId, image: image || existingUserByEmail.image },
+          include: { coach: true },
+        });
+        console.log(
+          `[AUTH] Linked existing user ${existingUserByEmail.email} to Clerk ID ${clerkUserId}`
+        );
+      } else {
+        // Créer un nouveau user
+        user = await prisma.user.create({
+          data: {
+            clerkUserId,
+            email,
+            name: name || "Utilisateur",
+            image,
+            role: "USER",
+          },
+          include: { coach: true },
+        });
+        console.log(`[AUTH] Created new user ${email} with Clerk ID ${clerkUserId}`);
+      }
+    }
+
+    return user;
+  } catch (error) {
+    console.error("[AUTH] Error in database operations:", error);
+    return null;
+  }
 }
 
 /**
