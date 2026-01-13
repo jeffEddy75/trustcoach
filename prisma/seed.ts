@@ -6,6 +6,7 @@ import {
   TargetAudience,
   BookingStatus,
   InvoiceStatus,
+  SessionStatus,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -455,6 +456,7 @@ Techniques utilisées : visualisation, ancrage, gestion du stress, routines de p
       currency: "EUR",
       session: {
         create: {
+          status: SessionStatus.COMPLETED,
           summaryRaw: `## Points clés de la séance
 
 ### Situation abordée
@@ -525,6 +527,25 @@ Nous travaillerons sur votre posture de manager et préparerons votre prochaine 
       currency: "EUR",
       session: {
         create: {
+          status: SessionStatus.COMPLETED,
+          summaryRaw: `## Résumé de votre séance du ${booking2Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Nous avons travaillé sur votre **posture de manager** et préparé votre conversation avec votre N+1. Vous avez identifié que vous aviez tendance à sur-expliquer vos décisions, ce qui peut être perçu comme un manque d'assurance.
+
+### Moments clés ⭐
+1. Exercice de prise de parole : vous avez réussi à formuler une demande claire en moins de 30 secondes
+2. Déclic : "Je n'ai pas besoin de justifier chaque décision"
+
+### Progrès constatés
+- Vous avez eu une conversation constructive avec votre N+1
+- Vous vous êtes sentie plus sereine lors de la réunion d'équipe de vendredi
+- Votre équipe a remarqué que vous étiez "plus affirmée"
+
+### Actions pour la suite
+1. Continuer le journal des réussites
+2. Pratiquer la technique "Stop-Respire-Réponds"
+3. Oser déléguer une tâche importante cette semaine`,
           summaryFinal: `## Résumé de votre séance du ${booking2Date.toLocaleDateString("fr-FR")}
 
 ### Ce que nous avons exploré
@@ -600,6 +621,22 @@ Nous avons travaillé sur votre **posture de manager** et préparé votre conver
       currency: "EUR",
       session: {
         create: {
+          status: SessionStatus.COMPLETED,
+          summaryRaw: `## Résumé de votre séance du ${booking4Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Nous avons fait connaissance et identifié vos objectifs pour cet accompagnement. Vous traversez une période de **questionnement professionnel** : après 8 ans dans le même poste, vous ressentez un besoin de changement mais avez du mal à identifier ce que vous voulez vraiment.
+
+### Ce qui a émergé
+- Un sentiment d'ennui au travail depuis environ 1 an
+- La peur de "tout plaquer" sans savoir où aller
+- Une envie de retrouver du sens et de l'enthousiasme
+
+### Exercice proposé
+Tenir un "journal de joie" pendant 2 semaines : noter chaque jour 3 moments où vous avez ressenti du plaisir, même minime.
+
+### Prochaine séance
+Nous analyserons ensemble votre journal pour identifier des patterns et pistes d'exploration.`,
           summaryFinal: `## Résumé de votre séance du ${booking4Date.toLocaleDateString("fr-FR")}
 
 ### Ce que nous avons exploré
@@ -784,6 +821,24 @@ Nous analyserons ensemble votre journal pour identifier des patterns et pistes d
       currency: "EUR",
       session: {
         create: {
+          status: SessionStatus.COMPLETED,
+          summaryRaw: `## Résumé de votre séance du ${booking6Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Première séance ensemble. Nous avons identifié vos objectifs : **améliorer votre performance lors des présentations en public** et **gérer le stress avant les événements importants**.
+
+### Ce qui a émergé
+- Une anxiété anticipatoire importante avant les keynotes
+- Des symptômes physiques (mains moites, voix qui tremble) les 5 premières minutes
+- Une fois lancé, vous retrouvez vos moyens
+
+### Techniques abordées
+1. La technique de respiration 4-7-8 pour calmer le système nerveux
+2. L'ancrage : créer un geste associé à un état de confiance
+
+### Actions pour la prochaine séance
+- Pratiquer la respiration 4-7-8 chaque matin pendant 5 minutes
+- Identifier 3 moments de votre vie où vous vous êtes senti totalement confiant`,
           summaryFinal: `## Résumé de votre séance du ${booking6Date.toLocaleDateString("fr-FR")}
 
 ### Ce que nous avons exploré
@@ -834,6 +889,23 @@ Première séance ensemble. Nous avons identifié vos objectifs : **améliorer v
       currency: "EUR",
       session: {
         create: {
+          status: SessionStatus.COMPLETED,
+          summaryRaw: `## Résumé de votre séance du ${booking7Date.toLocaleDateString("fr-FR")}
+
+### Progrès constatés
+Vous avez fait une présentation la semaine dernière et avez utilisé la technique de respiration avant de monter sur scène. Vous avez noté une **amélioration significative** : les tremblements ont disparu dès la 2ème minute au lieu de 5.
+
+### Ce que nous avons travaillé
+- Exercice de visualisation : revivre mentalement votre meilleure présentation
+- Création d'une routine pré-événement personnalisée
+
+### Votre routine pré-événement
+1. 15 min avant : respiration 4-7-8 (3 cycles)
+2. 5 min avant : visualisation rapide (succès passé)
+3. Juste avant : ancrage (geste de confiance)
+
+### Prochaine étape
+Tester cette routine lors de votre prochaine keynote et observer les résultats.`,
           summaryFinal: `## Résumé de votre séance du ${booking7Date.toLocaleDateString("fr-FR")}
 
 ### Progrès constatés
