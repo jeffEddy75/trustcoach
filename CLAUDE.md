@@ -22,7 +22,7 @@ App de coaching B2C (bien-être) et B2B (professionnel) avec :
 Framework       : Next.js 15 (App Router)
 Langage         : TypeScript strict (no any, no implicit)
 Base de données : PostgreSQL + Prisma
-Auth            : NextAuth.js v5
+Auth            : Clerk (@clerk/nextjs v6)
 UI              : Tailwind CSS + shadcn/ui
 State           : Zustand (global) + TanStack Query (server cache)
 Validation      : Zod
@@ -129,6 +129,40 @@ Pattern pour recherche partielle sur tableau de strings :
 1. Récupérer toutes les valeurs uniques du tableau
 2. Filtrer celles qui contiennent le terme (includes)
 3. Utiliser hasSome avec les valeurs filtrées
+```
+
+### Règle 9 : CLERK MIDDLEWARE OBLIGATOIRE
+```
+❌ INTERDIT : Créer un middleware custom pour vérifier les cookies Clerk
+✅ OBLIGATOIRE : Utiliser clerkMiddleware de @clerk/nextjs/server
+
+Le middleware custom qui vérifie __session ou __clerk_db_jwt NE FONCTIONNE PAS !
+Clerk nécessite son propre middleware pour initialiser le contexte auth().
+
+Pattern obligatoire dans middleware.ts :
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+
+const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
+});
+```
+
+### Règle 10 : VÉRIFIER LES LIENS AVANT DE DEBUG L'AUTH
+```
+❌ INTERDIT : Debugger l'authentification sans vérifier où pointe le lien
+✅ OBLIGATOIRE : En cas de problème de navigation, TOUJOURS vérifier le href du lien AVANT de toucher à l'auth
+
+Erreur typique : "Je clique sur X mais ça m'envoie vers sign-up/sign-in"
+Cause probable : Le lien pointe vers une route inexistante (/register, /login, etc.)
+
+Avant de modifier auth.ts, middleware.ts ou les pages dashboard :
+1. grep -r "href.*register\|href.*login" pour trouver les liens cassés
+2. Vérifier que les liens pointent vers les bonnes routes (/sign-in, /sign-up, /coach, /user)
+3. Les routes auth Clerk sont : /sign-in et /sign-up (PAS /login, /register)
 ```
 
 ---
@@ -254,4 +288,4 @@ npm run type-check          # TypeScript
 ---
 
 *Dernière mise à jour : 13 Janvier 2026*
-*Version : 1.1.0*
+*Version : 1.2.0*
