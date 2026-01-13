@@ -1,5 +1,6 @@
 import { getCurrentDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, FileText, ArrowRight } from "lucide-react";
@@ -15,7 +16,7 @@ export default async function UserDashboardPage() {
   const user = await getCurrentDbUser();
 
   if (!user) {
-    return null;
+    redirect("/sign-in");
   }
 
   // Récupérer les stats

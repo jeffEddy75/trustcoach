@@ -9,7 +9,16 @@ export type UserWithCoach = User & { coach: Coach | null };
  * Crée automatiquement le user Prisma si c'est la première connexion.
  */
 export async function getCurrentDbUser(): Promise<UserWithCoach | null> {
-  const { userId: clerkUserId } = await auth();
+  let clerkUserId: string | null = null;
+
+  try {
+    const authResult = await auth();
+    clerkUserId = authResult.userId;
+  } catch (error) {
+    console.error("[AUTH] Error calling Clerk auth():", error);
+    return null;
+  }
+
   if (!clerkUserId) return null;
 
   // Chercher le user existant par clerkUserId
