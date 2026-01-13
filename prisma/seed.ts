@@ -763,19 +763,186 @@ Nous analyserons ensemble votre journal pour identifier des patterns et pistes d
   console.log("  ✅ Conversation Sophie ↔ Laura");
 
   // =============================================
+  // ÉTAPE 6: BOOKINGS POUR THOMAS (en tant que client)
+  // =============================================
+  console.log("\n📌 Creating bookings for Thomas as a client...");
+
+  // Thomas (jeff@eddy.tv) est aussi client de Nicolas (Préparateur Mental)
+  // Cela permet de tester l'espace client avec le même compte
+
+  // BOOKING 6: Thomas ↔ Nicolas — Séance 1 (il y a 2 semaines, COMPLETED)
+  const booking6Date = setTime(subWeeks(now, 2), 18, 0);
+  const booking6 = await prisma.booking.create({
+    data: {
+      userId: thomasUser.id,
+      coachId: nicolasCoach.id,
+      scheduledAt: booking6Date,
+      duration: 60,
+      price: 12000,
+      status: BookingStatus.COMPLETED,
+      mode: "IN_PERSON",
+      currency: "EUR",
+      session: {
+        create: {
+          summaryFinal: `## Résumé de votre séance du ${booking6Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Première séance ensemble. Nous avons identifié vos objectifs : **améliorer votre performance lors des présentations en public** et **gérer le stress avant les événements importants**.
+
+### Ce qui a émergé
+- Une anxiété anticipatoire importante avant les keynotes
+- Des symptômes physiques (mains moites, voix qui tremble) les 5 premières minutes
+- Une fois lancé, vous retrouvez vos moyens
+
+### Techniques abordées
+1. La technique de respiration 4-7-8 pour calmer le système nerveux
+2. L'ancrage : créer un geste associé à un état de confiance
+
+### Actions pour la prochaine séance
+- Pratiquer la respiration 4-7-8 chaque matin pendant 5 minutes
+- Identifier 3 moments de votre vie où vous vous êtes senti totalement confiant`,
+        },
+      },
+    },
+  });
+
+  // Moment marqué
+  const session6 = await prisma.session.findUnique({ where: { bookingId: booking6.id } });
+  if (session6) {
+    await prisma.markedMoment.create({
+      data: {
+        sessionId: session6.id,
+        timestamp: 1523,
+        note: "Technique d'ancrage - geste de confiance identifié",
+      },
+    });
+  }
+
+  console.log("  ✅ Booking 6: Thomas ↔ Nicolas (Séance 1 - Completed)");
+
+  // BOOKING 7: Thomas ↔ Nicolas — Séance 2 (il y a 3 jours, COMPLETED)
+  const booking7Date = setTime(subDays(now, 3), 18, 0);
+  await prisma.booking.create({
+    data: {
+      userId: thomasUser.id,
+      coachId: nicolasCoach.id,
+      scheduledAt: booking7Date,
+      duration: 60,
+      price: 12000,
+      status: BookingStatus.COMPLETED,
+      mode: "REMOTE",
+      currency: "EUR",
+      session: {
+        create: {
+          summaryFinal: `## Résumé de votre séance du ${booking7Date.toLocaleDateString("fr-FR")}
+
+### Progrès constatés
+Vous avez fait une présentation la semaine dernière et avez utilisé la technique de respiration avant de monter sur scène. Vous avez noté une **amélioration significative** : les tremblements ont disparu dès la 2ème minute au lieu de 5.
+
+### Ce que nous avons travaillé
+- Exercice de visualisation : revivre mentalement votre meilleure présentation
+- Création d'une routine pré-événement personnalisée
+
+### Votre routine pré-événement
+1. 15 min avant : respiration 4-7-8 (3 cycles)
+2. 5 min avant : visualisation rapide (succès passé)
+3. Juste avant : ancrage (geste de confiance)
+
+### Prochaine étape
+Tester cette routine lors de votre prochaine keynote et observer les résultats.`,
+        },
+      },
+    },
+  });
+
+  console.log("  ✅ Booking 7: Thomas ↔ Nicolas (Séance 2 - Completed)");
+
+  // BOOKING 8: Thomas ↔ Nicolas — Séance 3 (dans 5 jours, CONFIRMED)
+  const booking8Date = setTime(addDays(now, 5), 18, 0);
+  await prisma.booking.create({
+    data: {
+      userId: thomasUser.id,
+      coachId: nicolasCoach.id,
+      scheduledAt: booking8Date,
+      duration: 60,
+      price: 12000,
+      status: BookingStatus.CONFIRMED,
+      mode: "IN_PERSON",
+      currency: "EUR",
+    },
+  });
+
+  console.log("  ✅ Booking 8: Thomas ↔ Nicolas (Séance 3 - À venir)");
+
+  // Conversation Thomas (client) ↔ Nicolas (coach)
+  const conversation3 = await prisma.conversation.create({
+    data: {
+      userId: thomasUser.id,
+      coachId: nicolasCoach.id,
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.chatMessage.createMany({
+    data: [
+      {
+        conversationId: conversation3.id,
+        senderId: thomasUser.id,
+        senderRole: "USER",
+        content: "Bonjour Nicolas, je suis coach moi-même mais j'ai besoin d'un accompagnement pour améliorer ma performance lors de mes prises de parole. Votre parcours d'athlète m'intéresse beaucoup.",
+        createdAt: subWeeks(now, 3),
+      },
+      {
+        conversationId: conversation3.id,
+        senderId: nicolasUser.id,
+        senderRole: "COACH",
+        content: "Bonjour Thomas ! C'est toujours intéressant d'accompagner des confrères. La prise de parole en public, c'est vraiment mon domaine de prédilection. Qu'est-ce qui vous pose le plus de difficultés ?",
+        createdAt: subWeeks(now, 3),
+      },
+      {
+        conversationId: conversation3.id,
+        senderId: thomasUser.id,
+        senderRole: "USER",
+        content: "J'ai un stress important avant les keynotes, même après 10 ans de métier. Les 5 premières minutes sont toujours difficiles. J'aimerais trouver des techniques pour mieux gérer ça.",
+        createdAt: subWeeks(now, 3),
+      },
+      {
+        conversationId: conversation3.id,
+        senderId: nicolasUser.id,
+        senderRole: "COACH",
+        content: "C'est très courant, même chez les professionnels expérimentés ! Le stress n'est pas l'ennemi, c'est l'art de le canaliser qui fait la différence. Je vous propose qu'on se voit pour une première séance. Vous verrez, on va travailler des techniques concrètes.",
+        createdAt: subWeeks(now, 3),
+      },
+      {
+        conversationId: conversation3.id,
+        senderId: thomasUser.id,
+        senderRole: "USER",
+        content: "Merci Nicolas ! J'ai une keynote importante dans 3 semaines, j'aimerais être prêt. Je réserve une séance rapidement.",
+        createdAt: subWeeks(now, 3),
+      },
+    ],
+  });
+
+  console.log("  ✅ Conversation Thomas ↔ Nicolas");
+
+  // =============================================
   // FIN
   // =============================================
   console.log("\n✨ Seed completed successfully!");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n🎯 COMPTES DE TEST:");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("| Email                | Rôle    | Profil          |");
-  console.log("|----------------------|---------|-----------------|");
-  console.log("| jeff@eddy.tv         | Coach   | Thomas Martin   |");
-  console.log("| candice@aocprod.com  | Coach   | Sophie Dubois   |");
-  console.log("| fabrice@aocprod.com  | Coachée | Marie Dupont    |");
-  console.log("| kdenard@gmail.com    | Coachée | Laura Petit     |");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("| Email                | Rôle          | Profil          |");
+  console.log("|----------------------|---------------|-----------------|");
+  console.log("| jeff@eddy.tv         | Coach+Client  | Thomas Martin   |");
+  console.log("| candice@aocprod.com  | Coach         | Sophie Dubois   |");
+  console.log("| fabrice@aocprod.com  | Client        | Marie Dupont    |");
+  console.log("| kdenard@gmail.com    | Client        | Laura Petit     |");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n💡 jeff@eddy.tv peut tester les DEUX espaces :");
+  console.log("   - /coach : voir ses clients (Marie Dupont)");
+  console.log("   - /user  : voir ses séances avec Nicolas Roux (préparateur mental)");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 
 main()

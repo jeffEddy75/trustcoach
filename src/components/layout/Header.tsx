@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
-import { Menu, X, User, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { Menu, X, User, LogOut, Settings, LayoutDashboard, Users, Briefcase } from "lucide-react";
 import { useState } from "react";
 
 const publicNavItems = [
@@ -98,12 +98,30 @@ export function Header() {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={dashboardHref} className="cursor-pointer">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Tableau de bord
-                    </Link>
-                  </DropdownMenuItem>
+                  {/* Si l'utilisateur est coach, afficher les deux espaces */}
+                  {isCoach ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/coach" className="cursor-pointer">
+                          <Briefcase className="mr-2 h-4 w-4" />
+                          Espace coach
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/user" className="cursor-pointer">
+                          <Users className="mr-2 h-4 w-4" />
+                          Espace client
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem asChild>
+                      <Link href="/user" className="cursor-pointer">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Tableau de bord
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link
                       href={`${dashboardHref}/profile`}

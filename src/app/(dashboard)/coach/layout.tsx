@@ -11,6 +11,7 @@ import {
   Settings,
   Wallet,
   FileText,
+  ArrowLeftRight,
 } from "lucide-react";
 
 const coachNavItems: SidebarItem[] = [
@@ -22,6 +23,7 @@ const coachNavItems: SidebarItem[] = [
   { href: "/coach/invoices", label: "Mes factures", icon: FileText },
   { href: "/coach/profile", label: "Mon profil", icon: User },
   { href: "/coach/settings", label: "Paramètres", icon: Settings },
+  { href: "/user", label: "Espace client", icon: ArrowLeftRight },
 ];
 
 export default function CoachLayout({

@@ -9,6 +9,7 @@ import {
   MessageSquare,
   User,
   Settings,
+  Briefcase,
 } from "lucide-react";
 
 const userNavItems: SidebarItem[] = [
@@ -18,6 +19,7 @@ const userNavItems: SidebarItem[] = [
   { href: "/user/messages", label: "Messages", icon: MessageSquare },
   { href: "/user/profile", label: "Mon profil", icon: User },
   { href: "/user/settings", label: "Paramètres", icon: Settings },
+  { href: "/coach", label: "Espace coach", icon: Briefcase },
 ];
 
 export default function UserLayout({
