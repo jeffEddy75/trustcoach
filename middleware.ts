@@ -1,26 +1,49 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // Routes publiques (accessibles sans authentification)
-const isPublicRoute = createRouteMatcher([
-  "/", // Homepage
-  "/coaches(.*)", // Liste et profils coachs (publics)
-  "/about(.*)", // Page à propos
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/login(.*)", // Ancienne route (redirect)
-  "/register(.*)", // Ancienne route (redirect)
-  "/api/webhooks(.*)", // Webhooks Stripe
-]);
+const publicRoutes = [
+  "/",
+  "/coaches",
+  "/about",
+  "/sign-in",
+  "/sign-up",
+  "/login",
+  "/register",
+  "/api/webhooks",
+];
 
-export default clerkMiddleware(async (auth, req) => {
-  // Si la route n'est pas publique, exiger une connexion
-  if (!isPublicRoute(req)) {
-    await auth.protect();
+// Vérifier si une route est publique
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Routes publiques - laisser passer
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
 
-  // MODE DEV : Pas de vérification de rôle User/Coach
-  // Tout utilisateur connecté a accès à tout (dashboard user + coach)
-});
+  // Vérifier le cookie de session Clerk
+  // Clerk stocke le token dans __session ou __clerk_db_jwt
+  const sessionToken =
+    request.cookies.get("__session")?.value ||
+    request.cookies.get("__clerk_db_jwt")?.value;
+
+  // Si pas de session et route protégée, rediriger vers sign-in
+  if (!sessionToken) {
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect_url", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Utilisateur connecté - laisser passer
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
