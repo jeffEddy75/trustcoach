@@ -322,6 +322,74 @@ export async function getSessionAction(
 }
 
 /**
+ * Réinitialiser une session pour tester l'enregistrement (mode test uniquement)
+ */
+export async function resetSessionAction(
+  sessionId: string
+): Promise<ActionResult<Session>> {
+  try {
+    const user = await requireDbUser();
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { booking: { include: { coach: true } } },
+    });
+
+    if (!session) {
+      return { data: null, error: "Session non trouvée" };
+    }
+
+    // Vérifier les droits (propriétaire ou coach)
+    const isOwner = session.booking.userId === user.id;
+    const isCoach = session.booking.coach.userId === user.id;
+
+    if (!isOwner && !isCoach) {
+      return { data: null, error: "Accès non autorisé" };
+    }
+
+    // Réinitialiser la session
+    const resetSession = await prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        status: "IDLE",
+        statusMessage: null,
+        audioUrl: null,
+        audioSize: null,
+        audioDuration: null,
+        audioFormat: null,
+        transcript: null,
+        transcribedAt: null,
+        summaryRaw: null,
+        summaryFinal: null,
+        summarizedAt: null,
+      },
+    });
+
+    // Supprimer les consentements et moments marqués
+    await prisma.consent.deleteMany({
+      where: { sessionId },
+    });
+
+    await prisma.markedMoment.deleteMany({
+      where: { sessionId },
+    });
+
+    // Remettre le booking en CONFIRMED (pas COMPLETED)
+    await prisma.booking.update({
+      where: { id: session.bookingId },
+      data: { status: "CONFIRMED" },
+    });
+
+    console.log(`[TEST_MODE] Session ${sessionId} reset by user ${user.id}`);
+
+    return { data: resetSession, error: null };
+  } catch (error) {
+    console.error("[RESET_SESSION_ERROR]", error);
+    return { data: null, error: "Erreur lors de la réinitialisation" };
+  }
+}
+
+/**
  * Le coach valide et édite le résumé
  */
 export async function validateSummaryAction(

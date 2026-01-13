@@ -8,6 +8,7 @@ import { getInitials } from "@/lib/utils";
 import { Calendar, Clock, Star, FileText, Loader2 } from "lucide-react";
 import { SessionRecorder } from "@/components/features/session/SessionRecorder";
 import { SummaryView } from "@/components/features/session/SummaryView";
+import { ResetSessionButton } from "@/components/features/session/ResetSessionButton";
 import type { Metadata } from "next";
 
 interface SessionPageProps {
@@ -117,7 +118,12 @@ export default async function SessionPage({ params }: SessionPageProps) {
             </div>
           </div>
         </div>
-        <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
+        <div className="flex items-center gap-2">
+          {(session.status === "COMPLETED" || session.status === "FAILED") && (
+            <ResetSessionButton sessionId={session.id} />
+          )}
+          <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
+        </div>
       </div>
 
       {/* Contenu principal */}
