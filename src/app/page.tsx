@@ -33,7 +33,7 @@ export default function HomePage() {
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/register">Je suis coach</Link>
+                <Link href="/coach">Je suis coach</Link>
               </Button>
             </div>
           </div>
