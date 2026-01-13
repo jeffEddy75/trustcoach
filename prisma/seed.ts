@@ -4,318 +4,783 @@ import {
   BadgeLevel,
   InterventionMode,
   TargetAudience,
+  BookingStatus,
+  InvoiceStatus,
 } from "@prisma/client";
-import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Helper pour les dates
+function subWeeks(date: Date, weeks: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() - weeks * 7);
+  return result;
+}
+
+function subDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() - days);
+  return result;
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function setTime(date: Date, hours: number, minutes: number): Date {
+  const result = new Date(date);
+  result.setHours(hours, minutes, 0, 0);
+  return result;
+}
+
 async function main() {
-  console.log("Seeding database...");
+  console.log("🌱 Seeding database with demo data...\n");
 
   // =============================================
-  // ADMIN (Jeff)
+  // ÉTAPE 0: CLEANUP - Supprimer les données existantes
   // =============================================
-  const admin = await prisma.user.upsert({
+  console.log("🧹 Cleaning up existing demo data...");
+
+  // Supprimer dans l'ordre pour respecter les contraintes FK
+  await prisma.chatMessage.deleteMany({});
+  await prisma.conversation.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.markedMoment.deleteMany({});
+  await prisma.session.deleteMany({});
+  await prisma.booking.deleteMany({});
+  await prisma.availability.deleteMany({});
+  await prisma.certification.deleteMany({});
+  await prisma.coachReference.deleteMany({});
+  await prisma.coach.deleteMany({});
+
+  console.log("  ✅ Cleanup complete\n");
+
+  // =============================================
+  // ÉTAPE 1: COACHS
+  // =============================================
+  console.log("📌 Creating coaches...");
+
+  // COACH 1: Thomas Martin (Jeff) — Executive Coach B2B
+  const thomasUser = await prisma.user.upsert({
     where: { email: "jeff@eddy.tv" },
-    update: {},
+    update: {
+      name: "Thomas Martin",
+      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
     create: {
       email: "jeff@eddy.tv",
-      name: "Jeff",
-      password: await hash("admin123", 12), // Temporaire, tu utiliseras OAuth
+      name: "Thomas Martin",
+      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
       role: Role.ADMIN,
     },
   });
-  console.log("Created admin:", admin.email);
 
-  // =============================================
-  // COACH 1 - B2C Bien-être
-  // =============================================
-  const coach1User = await prisma.user.upsert({
-    where: { email: "marie.dupont@coach.fr" },
-    update: {},
-    create: {
-      email: "marie.dupont@coach.fr",
-      name: "Marie Dupont",
-      password: await hash("coach123", 12),
-      role: Role.COACH,
-      coach: {
-        create: {
-          bio: "Coach certifiée en développement personnel avec 10 ans d'expérience. Spécialisée dans la gestion du stress et l'équilibre de vie. Mon approche bienveillante vous accompagne vers une meilleure version de vous-même.",
-          headline: "Coach en gestion du stress et bien-être",
-          specialties: [
-            "Gestion du stress",
-            "Confiance en soi",
-            "Équilibre vie pro/perso",
-          ],
-          languages: ["fr", "en"],
-          methodologies: ["PNL", "Pleine conscience"],
-          interventionModes: [InterventionMode.INDIVIDUAL],
-          targetAudience: [
-            TargetAudience.INDIVIDUAL,
-            TargetAudience.EMPLOYEE,
-          ],
-          acceptsCorporate: false,
-          hourlyRate: 8000, // 80€
-          verified: true,
-          badgeLevel: BadgeLevel.VERIFIED,
-          city: "Paris",
-          country: "FR",
-          offersInPerson: true,
-          offersRemote: true,
-          availabilities: {
-            create: [
-              { dayOfWeek: 1, startTime: "09:00", endTime: "12:00" }, // Lundi matin
-              { dayOfWeek: 1, startTime: "14:00", endTime: "18:00" }, // Lundi après-midi
-              { dayOfWeek: 3, startTime: "09:00", endTime: "18:00" }, // Mercredi
-              { dayOfWeek: 5, startTime: "09:00", endTime: "12:00" }, // Vendredi matin
-            ],
-          },
-        },
-      },
-    },
-  });
-  console.log("Created coach B2C:", coach1User.email);
+  const thomasCoach = await prisma.coach.create({
+    data: {
+      userId: thomasUser.id,
+      bio: `Ancien directeur commercial chez L'Oréal pendant 15 ans, je me suis reconverti dans le coaching exécutif après une formation certifiante ICF.
 
-  // =============================================
-  // COACH 2 - B2B Executive Coaching
-  // =============================================
-  const coach2User = await prisma.user.upsert({
-    where: { email: "thomas.martin@coach.fr" },
-    update: {},
-    create: {
-      email: "thomas.martin@coach.fr",
-      name: "Thomas Martin",
-      password: await hash("coach123", 12),
-      role: Role.COACH,
-      coach: {
-        create: {
-          bio: "Expert en coaching de dirigeants et transformation des organisations. 15 ans d'expérience en entreprise (ex-DG chez Capgemini) avant de devenir coach. Certifié ICF PCC et praticien MBTI.",
-          headline: "Executive Coach & Leadership",
-          specialties: [
-            "Leadership",
-            "Management",
-            "Prise de parole",
-            "Gestion du changement",
-          ],
-          languages: ["fr", "en", "de"],
-          methodologies: [
-            "MBTI",
-            "Process Com",
-            "360° Feedback",
-            "Ennéagramme",
-          ],
-          interventionModes: [
-            InterventionMode.INDIVIDUAL,
-            InterventionMode.TEAM,
-            InterventionMode.ORGANIZATION,
-          ],
-          targetAudience: [TargetAudience.EXECUTIVE, TargetAudience.MANAGER],
-          acceptsCorporate: true,
-          hourlyRate: 15000, // 150€
-          dailyRate: 200000, // 2000€
-          verified: true,
-          badgeLevel: BadgeLevel.PREMIUM,
-          city: "Lyon",
-          country: "FR",
-          offersInPerson: true,
-          offersRemote: true,
-          certifications: {
-            create: [
-              {
-                name: "Certification ICF PCC",
-                issuer: "International Coaching Federation",
-                year: 2019,
-                verified: true,
-              },
-              {
-                name: "Certification MBTI Niveau II",
-                issuer: "The Myers-Briggs Company",
-                year: 2018,
-                verified: true,
-              },
-            ],
-          },
-          references: {
-            create: [
-              {
-                companyName: "BNP Paribas",
-                sector: "Banque",
-                missionType: "Coaching dirigeants",
-                year: 2023,
-                testimonial:
-                  "Thomas a accompagné notre COMEX dans une période de transformation majeure. Son approche structurée et bienveillante a permis à nos directeurs de développer leur leadership.",
-                contactName: "Marie D., DRH",
-                canDisplay: true,
-              },
-              {
-                companyName: "L'Oréal",
-                sector: "Cosmétiques",
-                missionType: "Team coaching",
-                year: 2022,
-                canDisplay: true,
-              },
-            ],
-          },
-          availabilities: {
-            create: [
-              { dayOfWeek: 1, startTime: "08:00", endTime: "19:00" }, // Lundi
-              { dayOfWeek: 2, startTime: "08:00", endTime: "19:00" }, // Mardi
-              { dayOfWeek: 3, startTime: "08:00", endTime: "19:00" }, // Mercredi
-              { dayOfWeek: 4, startTime: "08:00", endTime: "19:00" }, // Jeudi
-            ],
-          },
-        },
-      },
-    },
-  });
-  console.log("Created coach B2B Executive:", coach2User.email);
+J'accompagne les managers et dirigeants dans leur prise de poste, leur leadership et la gestion des situations complexes.
 
-  // =============================================
-  // COACH 3 - B2B Team & Manager Coaching
-  // =============================================
-  const coach3User = await prisma.user.upsert({
-    where: { email: "sophie.bernard@coach.fr" },
-    update: {},
-    create: {
-      email: "sophie.bernard@coach.fr",
-      name: "Sophie Bernard",
-      password: await hash("coach123", 12),
-      role: Role.COACH,
-      coach: {
-        create: {
-          bio: "Spécialiste du coaching d'équipe et de la cohésion. 12 ans d'expérience RH en startup et grands groupes. J'aide les managers à libérer le potentiel de leurs équipes.",
-          headline: "Coach d'équipe & Cohésion",
-          specialties: [
-            "Cohésion d'équipe",
-            "Management de proximité",
-            "Communication non-violente",
-            "Gestion des conflits",
-          ],
-          languages: ["fr", "en"],
-          methodologies: ["Process Com", "Analyse Transactionnelle", "CNV"],
-          interventionModes: [
-            InterventionMode.INDIVIDUAL,
-            InterventionMode.TEAM,
-            InterventionMode.GROUP,
-          ],
-          targetAudience: [
-            TargetAudience.MANAGER,
-            TargetAudience.EMPLOYEE,
-            TargetAudience.ENTREPRENEUR,
-          ],
-          acceptsCorporate: true,
-          hourlyRate: 12000, // 120€
-          dailyRate: 150000, // 1500€
-          verified: true,
-          badgeLevel: BadgeLevel.VERIFIED,
-          city: "Bordeaux",
-          country: "FR",
-          offersInPerson: true,
-          offersRemote: true,
-          certifications: {
-            create: [
-              {
-                name: "Certification Coach Agile",
-                issuer: "ICAgile",
-                year: 2020,
-                verified: true,
-              },
-            ],
-          },
-          references: {
-            create: [
-              {
-                companyName: "Doctolib",
-                sector: "Tech / Santé",
-                missionType: "Team building & cohésion",
-                year: 2024,
-                canDisplay: true,
-              },
-            ],
-          },
-          availabilities: {
-            create: [
-              { dayOfWeek: 2, startTime: "09:00", endTime: "18:00" }, // Mardi
-              { dayOfWeek: 4, startTime: "09:00", endTime: "18:00" }, // Jeudi
-              { dayOfWeek: 5, startTime: "09:00", endTime: "13:00" }, // Vendredi matin
-            ],
-          },
-        },
-      },
-    },
-  });
-  console.log("Created coach B2B Team:", coach3User.email);
-
-  // =============================================
-  // UTILISATEUR TEST
-  // =============================================
-  const user = await prisma.user.upsert({
-    where: { email: "user@test.fr" },
-    update: {},
-    create: {
-      email: "user@test.fr",
-      name: "Jean Test",
-      password: await hash("user123", 12),
-      role: Role.USER,
-    },
-  });
-  console.log("Created test user:", user.email);
-
-  // =============================================
-  // ORGANISATION TEST (B2B)
-  // =============================================
-  const org = await prisma.organization.upsert({
-    where: { siret: "12345678901234" },
-    update: {},
-    create: {
-      name: "Acme Corp",
-      legalName: "Acme Corporation SAS",
+Ma méthode : un mix de coaching orienté solutions et d'outils issus des neurosciences pour des résultats concrets et durables.`,
+      headline: "Executive Coach • Leadership & Performance",
+      specialties: ["Leadership", "Prise de poste", "Gestion du stress", "Management"],
+      languages: ["fr", "en"],
+      methodologies: ["ICF", "Process Com", "MBTI"],
+      interventionModes: [InterventionMode.INDIVIDUAL, InterventionMode.TEAM],
+      targetAudience: [TargetAudience.EXECUTIVE, TargetAudience.MANAGER],
+      acceptsCorporate: true,
+      hourlyRate: 15000,
+      dailyRate: 150000,
+      verified: true,
+      badgeLevel: BadgeLevel.PREMIUM,
+      city: "Paris",
+      country: "FR",
+      offersInPerson: true,
+      offersRemote: true,
+      legalName: "Thomas Martin EI",
       siret: "12345678901234",
-      vatNumber: "FR12345678901",
-      billingAddress: "123 Avenue des Champs-Élysées",
-      billingCity: "Paris",
-      billingPostcode: "75008",
-      billingCountry: "FR",
-      contactName: "Sophie Martin",
-      contactEmail: "sophie.martin@acme.fr",
-      maxUsersAllowed: 50,
-      budgetAllocated: 5000000, // 50 000€
+      businessAddress: "45 rue du Faubourg Saint-Honoré, 75008 Paris",
+      vatExempt: false,
+      totalSessions: 127,
+      averageRating: 4.9,
     },
   });
-  console.log("Created organization:", org.name);
 
-  // Ajouter le user test comme membre de l'organisation
-  const existingMember = await prisma.organizationMember.findUnique({
-    where: {
-      organizationId_userId: {
-        organizationId: org.id,
-        userId: user.id,
+  // Disponibilités Thomas
+  await prisma.availability.createMany({
+    data: [
+      { coachId: thomasCoach.id, dayOfWeek: 1, startTime: "09:00", endTime: "12:00" },
+      { coachId: thomasCoach.id, dayOfWeek: 1, startTime: "14:00", endTime: "18:00" },
+      { coachId: thomasCoach.id, dayOfWeek: 3, startTime: "09:00", endTime: "18:00" },
+      { coachId: thomasCoach.id, dayOfWeek: 5, startTime: "09:00", endTime: "12:00" },
+    ],
+  });
+
+  // Certifications Thomas
+  await prisma.certification.createMany({
+    data: [
+      {
+        coachId: thomasCoach.id,
+        name: "Professional Certified Coach (PCC)",
+        issuer: "International Coaching Federation",
+        year: 2019,
+        verified: true,
+      },
+      {
+        coachId: thomasCoach.id,
+        name: "Certification Process Communication",
+        issuer: "Kahler Communication France",
+        year: 2020,
+        verified: true,
+      },
+    ],
+  });
+
+  // Références Thomas
+  await prisma.coachReference.createMany({
+    data: [
+      {
+        coachId: thomasCoach.id,
+        companyName: "L'Oréal",
+        sector: "Cosmétiques",
+        year: 2023,
+        testimonial: "Thomas a accompagné notre équipe de direction dans une période de transformation. Son approche pragmatique et bienveillante a fait la différence.",
+        contactName: "Sophie R., DRH",
+        canDisplay: true,
+      },
+      {
+        coachId: thomasCoach.id,
+        companyName: "BNP Paribas",
+        sector: "Banque",
+        year: 2024,
+        testimonial: "Excellent accompagnement de nos managers en prise de poste. Résultats visibles dès les premières semaines.",
+        contactName: "Marc D., Directeur Formation",
+        canDisplay: true,
+      },
+    ],
+  });
+
+  console.log("  ✅ Thomas Martin (Jeff) — Executive Coach");
+
+  // COACH 2: Sophie Dubois (Candice) — Coach Bien-être B2C
+  const sophieUser = await prisma.user.upsert({
+    where: { email: "candice@aocprod.com" },
+    update: {
+      name: "Sophie Dubois",
+      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+    create: {
+      email: "candice@aocprod.com",
+      name: "Sophie Dubois",
+      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+  });
+
+  const sophieCoach = await prisma.coach.create({
+    data: {
+      userId: sophieUser.id,
+      bio: `Après 10 ans dans la communication, j'ai choisi de me consacrer à ce qui me passionne vraiment : accompagner les personnes en quête de sens et d'équilibre.
+
+Formée à la PNL et à la pleine conscience, je propose un accompagnement bienveillant pour vous aider à :
+• Retrouver confiance en vous
+• Gérer votre stress et vos émotions
+• Clarifier vos objectifs de vie
+
+Chaque parcours est unique, et je m'adapte à votre rythme.`,
+      headline: "Coach Bien-être • Confiance & Équilibre",
+      specialties: ["Confiance en soi", "Gestion du stress", "Équilibre vie pro/perso", "Développement personnel"],
+      languages: ["fr"],
+      methodologies: ["PNL", "Pleine conscience"],
+      interventionModes: [InterventionMode.INDIVIDUAL],
+      targetAudience: [TargetAudience.INDIVIDUAL],
+      acceptsCorporate: false,
+      hourlyRate: 8000,
+      verified: true,
+      badgeLevel: BadgeLevel.VERIFIED,
+      city: "Lyon",
+      country: "FR",
+      offersInPerson: false,
+      offersRemote: true,
+      legalName: "Sophie Dubois Entrepreneur Individuel",
+      siret: "98765432109876",
+      businessAddress: "12 rue de la République, 69001 Lyon",
+      vatExempt: true,
+      totalSessions: 89,
+      averageRating: 4.8,
+    },
+  });
+
+  await prisma.availability.createMany({
+    data: [
+      { coachId: sophieCoach.id, dayOfWeek: 2, startTime: "10:00", endTime: "19:00" },
+      { coachId: sophieCoach.id, dayOfWeek: 4, startTime: "10:00", endTime: "19:00" },
+      { coachId: sophieCoach.id, dayOfWeek: 6, startTime: "09:00", endTime: "13:00" },
+    ],
+  });
+
+  console.log("  ✅ Sophie Dubois (Candice) — Coach Bien-être");
+
+  // COACH 3: Marc Lefebvre — Coach Reconversion
+  const marcUser = await prisma.user.upsert({
+    where: { email: "marc.lefebvre@demo.trustcoach.fr" },
+    update: {},
+    create: {
+      email: "marc.lefebvre@demo.trustcoach.fr",
+      name: "Marc Lefebvre",
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
+      role: Role.COACH,
+    },
+  });
+
+  const marcCoach = await prisma.coach.create({
+    data: {
+      userId: marcUser.id,
+      bio: `J'ai moi-même vécu une reconversion professionnelle à 42 ans, passant de l'ingénierie à l'accompagnement. Cette expérience m'a donné une compréhension profonde des défis que vous traversez.
+
+Spécialisé dans les transitions professionnelles, je vous aide à :
+• Faire le bilan de vos compétences transférables
+• Explorer de nouvelles voies alignées avec vos valeurs
+• Construire un plan d'action concret
+
+Mon approche est pragmatique et orientée résultats.`,
+      headline: "Coach Carrière • Reconversion & Transition",
+      specialties: ["Reconversion professionnelle", "Bilan de compétences", "Recherche d'emploi", "Entrepreneuriat"],
+      languages: ["fr", "en", "es"],
+      methodologies: ["DISC", "Analyse transactionnelle"],
+      interventionModes: [InterventionMode.INDIVIDUAL, InterventionMode.GROUP],
+      targetAudience: [TargetAudience.INDIVIDUAL, TargetAudience.EMPLOYEE],
+      acceptsCorporate: true,
+      hourlyRate: 9500,
+      verified: true,
+      badgeLevel: BadgeLevel.VERIFIED,
+      city: "Bordeaux",
+      country: "FR",
+      offersInPerson: true,
+      offersRemote: true,
+      legalName: "Marc Lefebvre EI",
+      siret: "45678912345678",
+      businessAddress: "8 place des Quinconces, 33000 Bordeaux",
+      vatExempt: true,
+      totalSessions: 64,
+      averageRating: 4.7,
+    },
+  });
+
+  await prisma.availability.createMany({
+    data: [
+      { coachId: marcCoach.id, dayOfWeek: 1, startTime: "14:00", endTime: "20:00" },
+      { coachId: marcCoach.id, dayOfWeek: 3, startTime: "09:00", endTime: "13:00" },
+      { coachId: marcCoach.id, dayOfWeek: 4, startTime: "14:00", endTime: "20:00" },
+    ],
+  });
+
+  console.log("  ✅ Marc Lefebvre — Coach Reconversion");
+
+  // COACH 4: Amina Benali — Coach Parentalité
+  const aminaUser = await prisma.user.upsert({
+    where: { email: "amina.benali@demo.trustcoach.fr" },
+    update: {},
+    create: {
+      email: "amina.benali@demo.trustcoach.fr",
+      name: "Amina Benali",
+      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face",
+      role: Role.COACH,
+    },
+  });
+
+  const aminaCoach = await prisma.coach.create({
+    data: {
+      userId: aminaUser.id,
+      bio: `Maman de 3 enfants et ancienne psychologue scolaire, j'accompagne les parents qui veulent améliorer leur relation avec leurs enfants.
+
+Mon approche s'inspire de la discipline positive et de la communication non-violente (CNV). Je vous aide à :
+• Gérer les conflits sans crier
+• Poser des limites avec bienveillance
+• Retrouver du plaisir dans votre rôle de parent
+
+Les séances peuvent se faire en solo ou en couple.`,
+      headline: "Coach Parentalité • Éducation Positive",
+      specialties: ["Parentalité", "Communication familiale", "Gestion des conflits", "Adolescence"],
+      languages: ["fr", "ar"],
+      methodologies: ["CNV", "Discipline positive"],
+      interventionModes: [InterventionMode.INDIVIDUAL],
+      targetAudience: [TargetAudience.INDIVIDUAL],
+      acceptsCorporate: false,
+      hourlyRate: 7000,
+      verified: true,
+      badgeLevel: BadgeLevel.VERIFIED,
+      city: "Marseille",
+      country: "FR",
+      offersInPerson: false,
+      offersRemote: true,
+      legalName: "Amina Benali EI",
+      siret: "78912345678901",
+      businessAddress: "25 boulevard Longchamp, 13001 Marseille",
+      vatExempt: true,
+      totalSessions: 156,
+      averageRating: 4.9,
+    },
+  });
+
+  await prisma.availability.createMany({
+    data: [
+      { coachId: aminaCoach.id, dayOfWeek: 1, startTime: "20:00", endTime: "22:00" },
+      { coachId: aminaCoach.id, dayOfWeek: 3, startTime: "20:00", endTime: "22:00" },
+      { coachId: aminaCoach.id, dayOfWeek: 5, startTime: "14:00", endTime: "17:00" },
+    ],
+  });
+
+  console.log("  ✅ Amina Benali — Coach Parentalité");
+
+  // COACH 5: Nicolas Roux — Préparateur Mental
+  const nicolasUser = await prisma.user.upsert({
+    where: { email: "nicolas.roux@demo.trustcoach.fr" },
+    update: {},
+    create: {
+      email: "nicolas.roux@demo.trustcoach.fr",
+      name: "Nicolas Roux",
+      image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&h=400&fit=crop&crop=face",
+      role: Role.COACH,
+    },
+  });
+
+  const nicolasCoach = await prisma.coach.create({
+    data: {
+      userId: nicolasUser.id,
+      bio: `Ancien athlète de haut niveau (décathlon), je me suis formé à la préparation mentale pour accompagner sportifs et entrepreneurs dans leur quête de performance.
+
+Ma spécialité : vous aider à performer sous pression, que ce soit pour une compétition, un pitch ou une prise de parole importante.
+
+Techniques utilisées : visualisation, ancrage, gestion du stress, routines de performance.`,
+      headline: "Préparateur Mental • Performance & Dépassement",
+      specialties: ["Préparation mentale", "Performance", "Prise de parole", "Gestion de la pression"],
+      languages: ["fr", "en"],
+      methodologies: ["Préparation mentale", "PNL", "Sophrologie"],
+      interventionModes: [InterventionMode.INDIVIDUAL, InterventionMode.TEAM],
+      targetAudience: [TargetAudience.INDIVIDUAL, TargetAudience.EXECUTIVE, TargetAudience.MANAGER],
+      acceptsCorporate: true,
+      hourlyRate: 12000,
+      dailyRate: 200000,
+      verified: true,
+      badgeLevel: BadgeLevel.PREMIUM,
+      city: "Paris",
+      country: "FR",
+      offersInPerson: true,
+      offersRemote: true,
+      legalName: "Nicolas Roux EI",
+      siret: "32165498732165",
+      businessAddress: "18 avenue des Champs-Élysées, 75008 Paris",
+      vatExempt: false,
+      totalSessions: 203,
+      averageRating: 4.8,
+    },
+  });
+
+  await prisma.availability.createMany({
+    data: [
+      { coachId: nicolasCoach.id, dayOfWeek: 2, startTime: "07:00", endTime: "10:00" },
+      { coachId: nicolasCoach.id, dayOfWeek: 2, startTime: "18:00", endTime: "21:00" },
+      { coachId: nicolasCoach.id, dayOfWeek: 4, startTime: "07:00", endTime: "10:00" },
+      { coachId: nicolasCoach.id, dayOfWeek: 4, startTime: "18:00", endTime: "21:00" },
+    ],
+  });
+
+  console.log("  ✅ Nicolas Roux — Préparateur Mental");
+
+  // =============================================
+  // ÉTAPE 2: COACHÉS
+  // =============================================
+  console.log("\n📌 Creating coachees...");
+
+  // COACHÉE 1: Marie Dupont (Fabrice) — Cliente de Thomas
+  const marieUser = await prisma.user.upsert({
+    where: { email: "fabrice@aocprod.com" },
+    update: {
+      name: "Marie Dupont",
+      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+    create: {
+      email: "fabrice@aocprod.com",
+      name: "Marie Dupont",
+      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+  });
+
+  console.log("  ✅ Marie Dupont (Fabrice)");
+
+  // COACHÉE 2: Laura Petit (Katia) — Cliente de Sophie
+  const lauraUser = await prisma.user.upsert({
+    where: { email: "kdenard@gmail.com" },
+    update: {
+      name: "Laura Petit",
+      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+    create: {
+      email: "kdenard@gmail.com",
+      name: "Laura Petit",
+      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face",
+      role: Role.ADMIN,
+    },
+  });
+
+  console.log("  ✅ Laura Petit (Katia)");
+
+  // =============================================
+  // ÉTAPE 3: BOOKINGS ET SESSIONS
+  // =============================================
+  console.log("\n📌 Creating bookings and sessions...");
+
+  const now = new Date();
+
+  // BOOKING 1: Marie ↔ Thomas — Séance 1 (il y a 3 semaines, COMPLETED)
+  const booking1Date = setTime(subWeeks(now, 3), 10, 0);
+  const booking1 = await prisma.booking.create({
+    data: {
+      userId: marieUser.id,
+      coachId: thomasCoach.id,
+      scheduledAt: booking1Date,
+      duration: 60,
+      price: 15000,
+      status: BookingStatus.COMPLETED,
+      mode: "REMOTE",
+      currency: "EUR",
+      session: {
+        create: {
+          summaryRaw: `## Points clés de la séance
+
+### Situation abordée
+Marie a vécu une réunion difficile avec son N+1 qui lui a reproché un manque de visibilité sur son équipe. Elle a ressenti cette remarque comme une attaque personnelle et s'est sentie paralysée.
+
+### Émotions identifiées
+- Stress aigu pendant la réunion (accélération cardiaque, mains moites)
+- Rumination après la réunion
+- Peur profonde de ne pas être à la hauteur du poste
+
+### Insight principal
+Marie prend conscience que sa réaction est liée à sa peur de l'échec dans son nouveau rôle de manager. C'est sa première expérience de management.
+
+### Pistes de travail
+1. Comprendre les mécanismes émotionnels face aux critiques
+2. Préparer une stratégie de communication avec le N+1
+3. Travailler sur la posture de manager
+
+### Actions pour la prochaine séance
+- [ ] Noter les situations où Marie se sent "paralysée"
+- [ ] Identifier 3 réussites récentes avec son équipe
+- [ ] Préparer les points à aborder avec son N+1`,
+          summaryFinal: `## Résumé de votre séance du ${booking1Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Nous avons analysé votre réaction lors de la réunion difficile avec votre N+1. Vous avez identifié une **peur de ne pas être à la hauteur** de votre nouveau rôle de manager, ce qui explique votre réaction de stress face aux critiques.
+
+### Moment clé ⭐
+Votre prise de conscience : "C'est la première fois que je manage une équipe, et j'ai peur de ne pas y arriver."
+
+### Ce que vous allez faire d'ici notre prochaine séance
+1. Noter les situations où vous vous sentez paralysée
+2. Lister 3 réussites récentes avec votre équipe
+3. Réfléchir aux points à clarifier avec votre N+1
+
+### Prochaine séance
+Nous travaillerons sur votre posture de manager et préparerons votre prochaine interaction avec votre N+1.`,
+        },
       },
     },
   });
 
-  if (!existingMember) {
-    await prisma.organizationMember.create({
+  // Moment marqué pour la séance 1
+  const session1 = await prisma.session.findUnique({ where: { bookingId: booking1.id } });
+  if (session1) {
+    await prisma.markedMoment.create({
       data: {
-        organizationId: org.id,
-        userId: user.id,
-        role: "EMPLOYEE",
-        sessionsAllowed: 10,
+        sessionId: session1.id,
+        timestamp: 847,
+        note: "Prise de conscience : peur de ne pas être à la hauteur",
       },
     });
-    console.log("Added user to organization");
   }
 
-  console.log("\nSeed completed successfully!");
-  console.log("----------------------------");
-  console.log("Admin: jeff@eddy.tv");
-  console.log("Coachs de test: marie.dupont@coach.fr, thomas.martin@coach.fr, sophie.bernard@coach.fr");
-  console.log("User test: user@test.fr");
+  console.log("  ✅ Booking 1: Marie ↔ Thomas (Séance 1 - Completed)");
+
+  // BOOKING 2: Marie ↔ Thomas — Séance 2 (il y a 1 semaine, COMPLETED)
+  const booking2Date = setTime(subWeeks(now, 1), 10, 0);
+  const booking2 = await prisma.booking.create({
+    data: {
+      userId: marieUser.id,
+      coachId: thomasCoach.id,
+      scheduledAt: booking2Date,
+      duration: 60,
+      price: 15000,
+      status: BookingStatus.COMPLETED,
+      mode: "REMOTE",
+      currency: "EUR",
+      session: {
+        create: {
+          summaryFinal: `## Résumé de votre séance du ${booking2Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Nous avons travaillé sur votre **posture de manager** et préparé votre conversation avec votre N+1. Vous avez identifié que vous aviez tendance à sur-expliquer vos décisions, ce qui peut être perçu comme un manque d'assurance.
+
+### Moments clés ⭐
+1. Exercice de prise de parole : vous avez réussi à formuler une demande claire en moins de 30 secondes
+2. Déclic : "Je n'ai pas besoin de justifier chaque décision"
+
+### Progrès constatés
+- Vous avez eu une conversation constructive avec votre N+1
+- Vous vous êtes sentie plus sereine lors de la réunion d'équipe de vendredi
+- Votre équipe a remarqué que vous étiez "plus affirmée"
+
+### Actions pour la suite
+1. Continuer le journal des réussites
+2. Pratiquer la technique "Stop-Respire-Réponds"
+3. Oser déléguer une tâche importante cette semaine`,
+        },
+      },
+    },
+  });
+
+  // Moments marqués pour la séance 2
+  const session2 = await prisma.session.findUnique({ where: { bookingId: booking2.id } });
+  if (session2) {
+    await prisma.markedMoment.createMany({
+      data: [
+        {
+          sessionId: session2.id,
+          timestamp: 623,
+          note: "Exercice prise de parole - demande claire en 30s",
+        },
+        {
+          sessionId: session2.id,
+          timestamp: 1847,
+          note: "Déclic : pas besoin de tout justifier",
+        },
+      ],
+    });
+  }
+
+  console.log("  ✅ Booking 2: Marie ↔ Thomas (Séance 2 - Completed)");
+
+  // BOOKING 3: Marie ↔ Thomas — Séance 3 (dans 3 jours, CONFIRMED)
+  const booking3Date = setTime(addDays(now, 3), 10, 0);
+  await prisma.booking.create({
+    data: {
+      userId: marieUser.id,
+      coachId: thomasCoach.id,
+      scheduledAt: booking3Date,
+      duration: 60,
+      price: 15000,
+      status: BookingStatus.CONFIRMED,
+      mode: "REMOTE",
+      currency: "EUR",
+    },
+  });
+
+  console.log("  ✅ Booking 3: Marie ↔ Thomas (Séance 3 - À venir)");
+
+  // BOOKING 4: Laura ↔ Sophie — Séance 1 (il y a 10 jours, COMPLETED)
+  const booking4Date = setTime(subDays(now, 10), 14, 0);
+  await prisma.booking.create({
+    data: {
+      userId: lauraUser.id,
+      coachId: sophieCoach.id,
+      scheduledAt: booking4Date,
+      duration: 60,
+      price: 8000,
+      status: BookingStatus.COMPLETED,
+      mode: "REMOTE",
+      currency: "EUR",
+      session: {
+        create: {
+          summaryFinal: `## Résumé de votre séance du ${booking4Date.toLocaleDateString("fr-FR")}
+
+### Ce que nous avons exploré
+Nous avons fait connaissance et identifié vos objectifs pour cet accompagnement. Vous traversez une période de **questionnement professionnel** : après 8 ans dans le même poste, vous ressentez un besoin de changement mais avez du mal à identifier ce que vous voulez vraiment.
+
+### Ce qui a émergé
+- Un sentiment d'ennui au travail depuis environ 1 an
+- La peur de "tout plaquer" sans savoir où aller
+- Une envie de retrouver du sens et de l'enthousiasme
+
+### Exercice proposé
+Tenir un "journal de joie" pendant 2 semaines : noter chaque jour 3 moments où vous avez ressenti du plaisir, même minime.
+
+### Prochaine séance
+Nous analyserons ensemble votre journal pour identifier des patterns et pistes d'exploration.`,
+        },
+      },
+    },
+  });
+
+  console.log("  ✅ Booking 4: Laura ↔ Sophie (Séance 1 - Completed)");
+
+  // BOOKING 5: Laura ↔ Sophie — Séance 2 (dans 4 jours, CONFIRMED)
+  const booking5Date = setTime(addDays(now, 4), 14, 0);
+  await prisma.booking.create({
+    data: {
+      userId: lauraUser.id,
+      coachId: sophieCoach.id,
+      scheduledAt: booking5Date,
+      duration: 60,
+      price: 8000,
+      status: BookingStatus.CONFIRMED,
+      mode: "REMOTE",
+      currency: "EUR",
+    },
+  });
+
+  console.log("  ✅ Booking 5: Laura ↔ Sophie (Séance 2 - À venir)");
+
+  // =============================================
+  // ÉTAPE 4: FACTURES
+  // =============================================
+  console.log("\n📌 Creating invoices...");
+
+  // Facture pour la séance 1 de Marie avec Thomas
+  await prisma.invoice.create({
+    data: {
+      number: "FAC-2026-01-0001",
+      coachId: thomasCoach.id,
+      userId: marieUser.id,
+      bookingId: booking1.id,
+      coachLegalName: "Thomas Martin EI",
+      coachSiret: "12345678901234",
+      coachAddress: "45 rue du Faubourg Saint-Honoré, 75008 Paris",
+      coachVatMention: "TVA 20%",
+      clientName: "Marie Dupont",
+      clientEmail: "fabrice@aocprod.com",
+      description: "Séance de coaching - Leadership & Prise de poste",
+      quantity: 1,
+      unitPriceHT: 12500,
+      amountHT: 12500,
+      amountTTC: 15000,
+      status: InvoiceStatus.SENT,
+      sentAt: subDays(now, 5),
+    },
+  });
+
+  console.log("  ✅ Facture FAC-2026-01-0001 (Thomas → Marie)");
+
+  // =============================================
+  // ÉTAPE 5: CONVERSATIONS
+  // =============================================
+  console.log("\n📌 Creating conversations...");
+
+  // Conversation Thomas ↔ Marie
+  const conversation1 = await prisma.conversation.create({
+    data: {
+      userId: marieUser.id,
+      coachId: thomasCoach.id,
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.chatMessage.createMany({
+    data: [
+      {
+        conversationId: conversation1.id,
+        senderId: marieUser.id,
+        senderRole: "USER",
+        content: "Bonjour Thomas, j'ai vu votre profil et votre parcours m'intéresse beaucoup. Je suis en prise de poste depuis 3 mois et j'ai du mal à trouver ma place. Est-ce quelque chose que vous accompagnez ?",
+        createdAt: subWeeks(now, 4),
+      },
+      {
+        conversationId: conversation1.id,
+        senderId: thomasUser.id,
+        senderRole: "COACH",
+        content: "Bonjour Marie, merci pour votre message. Oui, l'accompagnement des prises de poste est ma spécialité. C'est une période charnière qui mérite un vrai travail. Quels sont vos principaux défis aujourd'hui ?",
+        createdAt: subWeeks(now, 4),
+      },
+      {
+        conversationId: conversation1.id,
+        senderId: marieUser.id,
+        senderRole: "USER",
+        content: "Mon principal défi c'est de m'affirmer face à mon équipe et mon N+1. J'ai tendance à douter de mes décisions. J'aimerais qu'on travaille là-dessus.",
+        createdAt: subWeeks(now, 4),
+      },
+      {
+        conversationId: conversation1.id,
+        senderId: thomasUser.id,
+        senderRole: "COACH",
+        content: "Je comprends, c'est très courant en prise de poste. Je vous propose qu'on en discute lors d'une première séance. Vous verrez dans mon calendrier que j'ai des disponibilités cette semaine. À très vite !",
+        createdAt: subWeeks(now, 4),
+      },
+    ],
+  });
+
+  console.log("  ✅ Conversation Thomas ↔ Marie");
+
+  // Conversation Sophie ↔ Laura
+  const conversation2 = await prisma.conversation.create({
+    data: {
+      userId: lauraUser.id,
+      coachId: sophieCoach.id,
+      status: "ACTIVE",
+    },
+  });
+
+  await prisma.chatMessage.createMany({
+    data: [
+      {
+        conversationId: conversation2.id,
+        senderId: lauraUser.id,
+        senderRole: "USER",
+        content: "Bonjour Sophie, je cherche un accompagnement pour m'aider à y voir plus clair dans ma vie professionnelle. J'ai l'impression de tourner en rond depuis quelques mois.",
+        createdAt: subWeeks(now, 2),
+      },
+      {
+        conversationId: conversation2.id,
+        senderId: sophieUser.id,
+        senderRole: "COACH",
+        content: "Bonjour Laura, merci de votre message. Ce sentiment est plus courant qu'on ne le pense, et c'est souvent le signe qu'un changement est nécessaire. Qu'est-ce qui vous a poussée à chercher un accompagnement maintenant ?",
+        createdAt: subWeeks(now, 2),
+      },
+      {
+        conversationId: conversation2.id,
+        senderId: lauraUser.id,
+        senderRole: "USER",
+        content: "Je crois que j'ai besoin d'un regard extérieur. Mes proches me disent que j'ai 'tout pour être heureuse' mais je ne me sens pas épanouie. J'aimerais comprendre ce qui me manque.",
+        createdAt: subWeeks(now, 2),
+      },
+      {
+        conversationId: conversation2.id,
+        senderId: sophieUser.id,
+        senderRole: "COACH",
+        content: "Je comprends parfaitement. Chercher l'épanouissement n'a rien à voir avec 'avoir tout'. C'est un chemin personnel. Je vous propose une première séance pour explorer ensemble ce qui compte vraiment pour vous. Vous trouverez mes disponibilités dans mon calendrier.",
+        createdAt: subWeeks(now, 2),
+      },
+    ],
+  });
+
+  console.log("  ✅ Conversation Sophie ↔ Laura");
+
+  // =============================================
+  // FIN
+  // =============================================
+  console.log("\n✨ Seed completed successfully!");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n🎯 COMPTES DE TEST:");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("| Email                | Rôle    | Profil          |");
+  console.log("|----------------------|---------|-----------------|");
+  console.log("| jeff@eddy.tv         | Coach   | Thomas Martin   |");
+  console.log("| candice@aocprod.com  | Coach   | Sophie Dubois   |");
+  console.log("| fabrice@aocprod.com  | Coachée | Marie Dupont    |");
+  console.log("| kdenard@gmail.com    | Coachée | Laura Petit     |");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 
 main()
   .catch((e) => {
-    console.error("Seed error:", e);
+    console.error("❌ Seed error:", e);
     process.exit(1);
   })
   .finally(async () => {
