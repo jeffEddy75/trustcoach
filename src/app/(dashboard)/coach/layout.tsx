@@ -9,7 +9,7 @@ import {
   MessageSquare,
   User,
   Settings,
-  BarChart3,
+  Wallet,
 } from "lucide-react";
 
 const coachNavItems: SidebarItem[] = [
@@ -17,7 +17,7 @@ const coachNavItems: SidebarItem[] = [
   { href: "/coach/calendar", label: "Mon calendrier", icon: Calendar },
   { href: "/coach/clients", label: "Mes clients", icon: Users },
   { href: "/coach/messages", label: "Messages", icon: MessageSquare },
-  { href: "/coach/stats", label: "Statistiques", icon: BarChart3 },
+  { href: "/coach/earnings", label: "Mes revenus", icon: Wallet },
   { href: "/coach/profile", label: "Mon profil", icon: User },
   { href: "/coach/settings", label: "Paramètres", icon: Settings },
 ];

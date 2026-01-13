@@ -363,7 +363,7 @@ enum BookingStatus {
 ---
 
 #### Task 3.9 : Vue conversation / Chat (2h)
-**Objectif** : Interface de chat style iMessage + contexte IA
+**Objectif** : Interface de chat style iMessage
 
 **Critères d'acceptation** :
 - [ ] Page `/dashboard/user/messages/[conversationId]`
@@ -374,39 +374,25 @@ enum BookingStatus {
 - [ ] PAS de "Vu" ni "En ligne" (décision Gemini)
 - [ ] Polling TanStack Query toutes les 10s
 
-**Volet latéral Coach (Sidebar IA)** — Recommandation Gemini :
-> Le coach peut discuter avec son client tout en ayant ses "antisèches" IA sous les yeux.
-
-- [ ] Sur desktop : sidebar à droite du chat (300px)
-- [ ] Sur mobile : bouton pour ouvrir en drawer
-- [ ] Contenu :
-  - Dernier résumé de séance IA
-  - Liste des Moments Marqués ⭐
-  - 3 prochains objectifs du client
-  - Prochaine séance prévue
-
 **Design Serene Clarity** :
 ```
-┌──────────────────────────────────┬─────────────────────┐
-│ ← Marie Dupont                   │ 📋 Contexte         │
-├──────────────────────────────────┤─────────────────────│
-│                                  │                     │
-│         Bonjour, j'aimerais     │ Dernière séance     │
-│         savoir si votre         │ 10 jan • Séance #3  │
-│         méthode convient...     │ "Déclic sur la      │
-│                          Auj.   │ culpabilité..."     │
-│                                  │                     │
-│  Bonjour ! Avec plaisir.        │ ⭐ Moments marqués  │
-│  Ma méthode s'adapte à          │ • Prise de conscience│
-│  chaque profil...               │ • Exercice respiration│
-│  Hier                           │                     │
-│                                  │ 🎯 Objectifs        │
-│                                  │ □ Oser dire non     │
-│                                  │ □ Déléguer plus     │
-├──────────────────────────────────┤                     │
-│ [  Votre message...       ] [→] │ 📅 Prochaine séance │
-│                                  │ 15 jan à 14h        │
-└──────────────────────────────────┴─────────────────────┘
+┌─────────────────────────────────────┐
+│ ← Marie Dupont                      │
+├─────────────────────────────────────┤
+│                                     │
+│         Bonjour, j'aimerais        │
+│         savoir si votre            │
+│         méthode convient...        │
+│                          Aujourd'hui│
+│                                     │
+│  Bonjour ! Avec plaisir.           │
+│  Ma méthode s'adapte à             │
+│  chaque profil...                  │
+│  Hier                              │
+│                                     │
+├─────────────────────────────────────┤
+│ [  Votre message...          ] [→] │
+└─────────────────────────────────────┘
 ```
 
 ---
@@ -717,149 +703,6 @@ Géocodage des adresses via API Mapbox ou OpenCage au moment de la création du 
 - [ ] Partage coach ↔ coaché (avec consentement)
 - [ ] Analyse IA optionnelle (résumé du document)
 - [ ] Auto-suppression après X jours (configurable)
-
----
-
-### PHASE 7 : BUSINESS MANAGEMENT COACH (Post-MVP) — Validé Gemini
-
-> Transformer TrustCoach en "Système d'Exploitation" du coach.
-> Objectif : Créer une dépendance par la valeur (comme TheFork pour les restaurateurs).
-
-#### Philosophie (recommandation Gemini)
-
-| Approche | Description |
-|----------|-------------|
-| **Lock-in par la donnée** | Le coach ne peut pas partir car son historique client est ici |
-| **Lock-in administratif** | La facturation automatique simplifie sa vie |
-| **Lock-in sémantique** | L'IA comprend ses clients mieux que lui-même |
-
-**Priorité : CRM avant Facturation** — La force de TrustCoach c'est l'intelligence du contenu, pas l'administratif.
-
----
-
-#### Task 7.1 : Dashboard Coach "Focus" (2h) ✅ MVP
-**Objectif** : Vue d'ensemble des prochaines 48h
-
-**Critères d'acceptation** :
-- [ ] Liste des séances à venir (48h)
-- [ ] Pour chaque séance : client, numéro de séance, dernier moment marqué
-- [ ] Bouton "Voir pré-brief" (modal avec résumé dernière séance)
-- [ ] Bouton "Démarrer séance" (vers enregistrement)
-- [ ] Stats du mois en footer (CA + nombre de séances)
-
----
-
-#### Task 7.2 : Liste Clients avec Santé Coaching (2h) ✅ MVP
-**Objectif** : CRM simple avec indicateur de santé
-
-**Indicateurs de santé** :
-| Statut | Condition |
-|--------|-----------|
-| 🟢 Actif | Dernière séance < 2 semaines OU séance planifiée |
-| 🟡 À revoir | Dernière séance > 2 semaines, rien de prévu |
-| 🔵 Nouveau | 0 séances réalisées |
-| 🔴 Inactif | Dernière séance > 2 mois |
-
-**Critères d'acceptation** :
-- [ ] Liste de tous les coachés du coach
-- [ ] Badge de santé par client
-- [ ] Nombre de séances + date dernière séance
-- [ ] Objectif en cours (si défini)
-- [ ] Filtres (statut, recherche par nom)
-- [ ] Actions : Voir fiche, Envoyer message
-
----
-
-#### Task 7.3 : Ledger Financier Simple (1h) ✅ MVP
-**Objectif** : Suivi des revenus
-
-**Critères d'acceptation** :
-- [ ] 3 cards : CA ce mois / En attente / Total du mois
-- [ ] Historique 6 mois (barres horizontales)
-- [ ] Liste des dernières transactions
-- [ ] Statut paiement (✅ Complété, ⏳ En attente, ❌ Remboursé)
-- [ ] Export CSV (nice to have)
-
----
-
-#### Task 7.4 : Fiche Client Unifiée (2h)
-**Objectif** : Vue 360° d'un coaché
-
-**Contenu** :
-- Infos de base (nom, email, date première séance)
-- Historique des séances avec résumés IA
-- Tous les moments marqués ⭐
-- Objectifs et progression
-- Messages échangés (si messagerie)
-- Notes privées du coach
-
-**Critères d'acceptation** :
-- [ ] Page `/dashboard/coach/clients/[clientId]`
-- [ ] Timeline des séances
-- [ ] Accès aux résumés complets
-- [ ] Section notes privées (éditable)
-
----
-
-#### Task 7.5 : CRM Sémantique — Alertes IA (3h)
-**Objectif** : L'IA détecte les signaux faibles
-
-**Alertes possibles** :
-- "Marie n'a pas progressé sur son objectif depuis 3 séances"
-- "Jean a mentionné 'stress' dans les 3 dernières séances"
-- "Sophie n'a pas de séance prévue depuis 3 semaines"
-
-**Critères d'acceptation** :
-- [ ] Analyse des résumés pour détecter patterns
-- [ ] Affichage des alertes dans le dashboard
-- [ ] Suggestions d'actions (envoyer message, proposer séance)
-
----
-
-#### Task 7.6 : Facturation Automatique (2h)
-**Objectif** : Génération de factures PDF
-
-**Critères d'acceptation** :
-- [ ] Facture générée automatiquement après paiement Stripe
-- [ ] Numérotation conforme (YYYY-MM-XXX)
-- [ ] Infos coach (SIRET si dispo, adresse)
-- [ ] Infos client
-- [ ] PDF téléchargeable
-- [ ] Historique des factures
-
-**Note Gemini** : Utiliser les données Stripe, pas recréer un module compta.
-
----
-
-#### Task 7.7 : Export Comptable (1h)
-**Objectif** : CSV pour expert-comptable
-
-**Critères d'acceptation** :
-- [ ] Export par période (mois, trimestre, année)
-- [ ] Colonnes : Date, Client, Montant HT, TVA, TTC, N° facture
-- [ ] Format compatible avec les logiciels compta
-
----
-
-#### Task 7.8 : Disponibilités Récurrentes (1h)
-**Objectif** : Définir des créneaux répétitifs
-
-**Critères d'acceptation** :
-- [ ] "Tous les mardis de 14h à 18h"
-- [ ] "Tous les jours de 9h à 12h sauf week-end"
-- [ ] Génération automatique des slots sur X semaines
-- [ ] Possibilité de bloquer des dates ponctuelles
-
----
-
-#### Task 7.9 : Rappels Automatiques (1h)
-**Objectif** : Relancer les clients inactifs
-
-**Critères d'acceptation** :
-- [ ] Email automatique si dernier contact > 3 semaines
-- [ ] Message personnalisable par le coach
-- [ ] Opt-out pour le coach (désactiver les rappels)
-- [ ] Log des rappels envoyés
 
 ---
 
