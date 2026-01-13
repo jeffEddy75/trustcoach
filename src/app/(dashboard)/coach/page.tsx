@@ -1,6 +1,6 @@
 import { getCurrentDbUser, getClerkUserId } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getCoachDashboardData } from "@/actions/coach-dashboard.actions";
+import { getCoachDashboardData, type DashboardPeriod } from "@/actions/coach-dashboard.actions";
 import { CoachDashboard } from "@/components/features/coach-dashboard";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -11,7 +11,20 @@ export const metadata: Metadata = {
   description: "Gérez votre activité de coaching",
 };
 
-export default async function CoachDashboardPage() {
+const VALID_PERIODS: DashboardPeriod[] = ["48h", "week", "2weeks", "month"];
+
+interface CoachDashboardPageProps {
+  searchParams: Promise<{ period?: string }>;
+}
+
+export default async function CoachDashboardPage({ searchParams }: CoachDashboardPageProps) {
+  const params = await searchParams;
+
+  // Valider et récupérer la période (défaut: semaine)
+  const periodParam = params.period;
+  const period: DashboardPeriod = VALID_PERIODS.includes(periodParam as DashboardPeriod)
+    ? (periodParam as DashboardPeriod)
+    : "week";
   // Vérifier d'abord si l'utilisateur est connecté à Clerk
   const clerkUserId = await getClerkUserId();
 
@@ -37,7 +50,7 @@ export default async function CoachDashboardPage() {
     );
   }
 
-  const result = await getCoachDashboardData();
+  const result = await getCoachDashboardData(period);
 
   if (result.error || !result.data) {
     // L'utilisateur n'est pas coach - afficher un message clair
@@ -63,6 +76,7 @@ export default async function CoachDashboardPage() {
       upcomingBookings={result.data.upcomingBookings}
       monthRevenue={result.data.monthRevenue}
       monthSessions={result.data.monthSessions}
+      currentPeriod={period}
     />
   );
 }

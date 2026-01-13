@@ -41,12 +41,24 @@ interface DashboardData {
   monthSessions: number;
 }
 
+// Périodes disponibles pour le dashboard
+export type DashboardPeriod = "48h" | "week" | "2weeks" | "month";
+
+const PERIOD_HOURS: Record<DashboardPeriod, number> = {
+  "48h": 48,
+  "week": 7 * 24,
+  "2weeks": 14 * 24,
+  "month": 30 * 24,
+};
+
 /**
  * Récupère les données du dashboard coach "Focus"
- * - Séances des prochaines 48h
+ * - Séances selon la période choisie (48h, semaine, 2 semaines, mois)
  * - Stats du mois
  */
-export async function getCoachDashboardData(): Promise<ActionResult<DashboardData>> {
+export async function getCoachDashboardData(
+  period: DashboardPeriod = "week"
+): Promise<ActionResult<DashboardData>> {
   try {
     const user = await getCurrentDbUser();
 
@@ -73,16 +85,17 @@ export async function getCoachDashboardData(): Promise<ActionResult<DashboardDat
     }
 
     const now = new Date();
-    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const periodHours = PERIOD_HOURS[period];
+    const endDate = new Date(now.getTime() + periodHours * 60 * 60 * 1000);
 
-    // Bookings des prochaines 48h
+    // Bookings de la période
     const bookings = await prisma.booking.findMany({
       where: {
         coachId: coach.id,
         status: "CONFIRMED",
         scheduledAt: {
           gte: now,
-          lte: in48h,
+          lte: endDate,
         },
       },
       include: {
