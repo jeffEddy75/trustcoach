@@ -2,7 +2,7 @@
 
 import { requireDbUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createCheckoutSession, createRefund } from "@/services/stripe";
+import { createCheckoutSession, createRefund, STRIPE_ENABLED } from "@/services/stripe";
 import type { ActionResult } from "@/types";
 
 /**
@@ -66,6 +66,14 @@ export async function createPaymentSessionAction(
       cancelUrl: `${appUrl}/booking/${booking.coachId}?cancelled=true`,
     });
 
+    // Mode test : Stripe désactivé
+    if (!stripeSession) {
+      return {
+        data: null,
+        error: "STRIPE_DISABLED",
+      };
+    }
+
     // Sauvegarder l'ID de session Stripe sur la réservation
     await prisma.booking.update({
       where: { id: bookingId },
@@ -81,6 +89,72 @@ export async function createPaymentSessionAction(
     console.error("[CREATE_PAYMENT_SESSION_ERROR]", error);
     return { data: null, error: "Erreur lors de la création du paiement" };
   }
+}
+
+/**
+ * Confirmer une réservation sans paiement (mode test)
+ * Disponible uniquement si Stripe n'est pas configuré
+ */
+export async function confirmBookingWithoutPaymentAction(
+  bookingId: string
+): Promise<ActionResult<{ success: boolean; redirectUrl: string }>> {
+  try {
+    // Vérifier que Stripe est désactivé
+    if (STRIPE_ENABLED) {
+      return { data: null, error: "Le paiement est requis" };
+    }
+
+    const user = await requireDbUser();
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        coach: { include: { user: true } },
+      },
+    });
+
+    if (!booking) {
+      return { data: null, error: "Réservation non trouvée" };
+    }
+
+    if (booking.userId !== user.id) {
+      return { data: null, error: "Accès non autorisé" };
+    }
+
+    if (booking.status !== "PENDING") {
+      return { data: null, error: "Cette réservation ne peut pas être confirmée" };
+    }
+
+    // Confirmer la réservation sans paiement
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: "CONFIRMED",
+        paidAt: new Date(),
+      },
+    });
+
+    console.log(`[TEST_MODE] Booking ${bookingId} confirmed without payment`);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    return {
+      data: {
+        success: true,
+        redirectUrl: `${appUrl}/booking/success?booking_id=${bookingId}`,
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error("[CONFIRM_WITHOUT_PAYMENT_ERROR]", error);
+    return { data: null, error: "Erreur lors de la confirmation" };
+  }
+}
+
+/**
+ * Vérifier si le mode test (sans Stripe) est actif
+ */
+export async function isTestModeAction(): Promise<ActionResult<{ testMode: boolean }>> {
+  return { data: { testMode: !STRIPE_ENABLED }, error: null };
 }
 
 /**

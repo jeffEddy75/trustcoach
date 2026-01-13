@@ -1,13 +1,20 @@
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY is not defined");
-}
+/**
+ * Mode Stripe désactivé si pas de clé configurée
+ * Permet de tester l'app sans paiement réel
+ */
+export const STRIPE_ENABLED =
+  !!process.env.STRIPE_SECRET_KEY &&
+  !process.env.STRIPE_SECRET_KEY.endsWith("...");
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-12-15.clover",
-  typescript: true,
-});
+// Créer le client Stripe seulement si configuré
+export const stripe = STRIPE_ENABLED
+  ? new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-12-15.clover",
+      typescript: true,
+    })
+  : null;
 
 /**
  * Configuration des prix par défaut
@@ -19,6 +26,7 @@ export const STRIPE_CONFIG = {
 
 /**
  * Crée une session Stripe Checkout pour une réservation
+ * Retourne null si Stripe n'est pas configuré (mode test)
  */
 export async function createCheckoutSession({
   bookingId,
@@ -40,7 +48,12 @@ export async function createCheckoutSession({
   customerEmail: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<Stripe.Checkout.Session> {
+}): Promise<Stripe.Checkout.Session | null> {
+  if (!stripe) {
+    console.log("[STRIPE] Mode test - pas de checkout créé");
+    return null;
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
@@ -72,7 +85,10 @@ export async function createCheckoutSession({
 /**
  * Récupère une session Checkout par ID
  */
-export async function getCheckoutSession(sessionId: string): Promise<Stripe.Checkout.Session> {
+export async function getCheckoutSession(
+  sessionId: string
+): Promise<Stripe.Checkout.Session | null> {
+  if (!stripe) return null;
   return stripe.checkout.sessions.retrieve(sessionId);
 }
 
@@ -87,7 +103,12 @@ export async function createRefund({
   paymentIntentId: string;
   amount?: number;
   reason?: "duplicate" | "fraudulent" | "requested_by_customer";
-}): Promise<Stripe.Refund> {
+}): Promise<Stripe.Refund | null> {
+  if (!stripe) {
+    console.log("[STRIPE] Mode test - pas de remboursement créé");
+    return null;
+  }
+
   const refundParams: Stripe.RefundCreateParams = {
     payment_intent: paymentIntentId,
     reason,
@@ -107,7 +128,8 @@ export function constructWebhookEvent(
   payload: string | Buffer,
   signature: string,
   webhookSecret: string
-): Stripe.Event {
+): Stripe.Event | null {
+  if (!stripe) return null;
   return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
 }
 

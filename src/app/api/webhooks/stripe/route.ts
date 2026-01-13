@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { constructWebhookEvent, HANDLED_EVENTS } from "@/services/stripe";
+import { constructWebhookEvent, HANDLED_EVENTS, STRIPE_ENABLED } from "@/services/stripe";
 import { upgradeConversationToActiveAction } from "@/actions/messaging.actions";
 import type Stripe from "stripe";
 
@@ -14,6 +14,12 @@ import type Stripe from "stripe";
  * - charge.refunded : Remboursement effectué
  */
 export async function POST(req: NextRequest) {
+  // Si Stripe n'est pas configuré, retourner OK
+  if (!STRIPE_ENABLED) {
+    console.log("[STRIPE_WEBHOOK] Stripe non configuré - webhook ignoré");
+    return NextResponse.json({ received: true, mode: "test" });
+  }
+
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -24,18 +30,16 @@ export async function POST(req: NextRequest) {
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
+  if (!webhookSecret || webhookSecret.endsWith("...")) {
     console.error("[STRIPE_WEBHOOK] STRIPE_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
-  let event: Stripe.Event;
+  const event = constructWebhookEvent(body, signature, webhookSecret);
 
-  try {
-    event = constructWebhookEvent(body, signature, webhookSecret);
-  } catch (err) {
-    console.error("[STRIPE_WEBHOOK] Signature verification failed:", err);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  if (!event) {
+    console.error("[STRIPE_WEBHOOK] Failed to construct event");
+    return NextResponse.json({ error: "Invalid event" }, { status: 400 });
   }
 
   // Vérifier que c'est un événement que nous gérons
