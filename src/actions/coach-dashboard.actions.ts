@@ -51,15 +51,24 @@ export async function getCoachDashboardData(): Promise<ActionResult<DashboardDat
     const user = await getCurrentDbUser();
 
     if (!user) {
+      console.log("[COACH_DASHBOARD] No user returned from getCurrentDbUser");
       return { data: null, error: "Non authentifié" };
     }
 
-    const coach = await prisma.coach.findUnique({
-      where: { userId: user.id },
-      include: { user: true },
-    });
+    console.log("[COACH_DASHBOARD] User found:", user.id, user.email, "coach:", user.coach?.id || "NULL");
+
+    // Utiliser le coach déjà inclus dans user, ou le chercher si pas présent
+    let coach = user.coach;
+    if (!coach) {
+      // Fallback: chercher le coach directement
+      coach = await prisma.coach.findUnique({
+        where: { userId: user.id },
+      });
+      console.log("[COACH_DASHBOARD] Fallback coach search:", coach?.id || "NULL");
+    }
 
     if (!coach) {
+      console.log("[COACH_DASHBOARD] No coach profile for user", user.id);
       return { data: null, error: "Vous n'êtes pas coach" };
     }
 
@@ -176,7 +185,7 @@ export async function getCoachDashboardData(): Promise<ActionResult<DashboardDat
       data: {
         coach: {
           id: coach.id,
-          name: coach.user.name?.split(" ")[0] || "Coach",
+          name: user.name?.split(" ")[0] || "Coach",
           verified: coach.verified,
         },
         upcomingBookings,
